@@ -129,12 +129,35 @@ interfaceInnerDiameter = 3.7;
 
 /* [Wires] */
 
+// Length of the base of the prismoid that the wires come out of
+wireOutletBaseLength = 6.5;
+
+// Height of the base of the prismoid that the wires come out of
+wireOutletBaseHeight = 4;
+
+wireOutletBaseDimensions = [wireOutletBaseLength, wireOutletBaseHeight];
+
+// Length of the top of the prismoid that the wires come out of
+wireOutletTopLength = 4.5;
+
+// Height of the top of the prismoid that the wires come out of
+wireOutletTopHeight = 3;
+
+wireOutletTopDimensions = [wireOutletTopLength, wireOutletTopHeight];
+
+// Distance that the wire outlet protrudes from the servo
+wireOutletThickness = 1.5;
+
+// Vertical distance between the bottom of the servo body and the bottom of the wire outlet
+wireOutletPlacementHeight = 4;
+
+// Diameter of the servo wires
+wireDiameter = 1.25;
+
 
 /*[Misc.]*/
 // Rounding to apply to the vertical edges, value is approximate
 verticalEdgeRounding = 1.5;
-
-// STILL NEED TO ADD WIRE CHANNEL
 
 // ----- Development -----
 
@@ -224,10 +247,39 @@ module BuildMicroServo(anchor = CENTER, spin = 0, orient = UP) {
             position(BOT)
             up(mountingPlatePlacementHeight)
             _BuildMountingPlate();
+
+            position(BACK)
+            down(servoBodyDimensions.z/2 - wireOutletBaseDimensions.y/2)
+            up(wireOutletPlacementHeight)
+            _BuildWireOutlet(anchor = BOT, orient = BACK, spin = 0) {
+                
+            };
         };
 
         children();
     }
+}
+
+/*
+    Builds the trapezoidal shape that protects the wires where they come
+        out of the servo.
+*/
+module _BuildWireOutlet(anchor = CENTER, spin = 0, orient = UP) {
+    prismoid(size1=wireOutletBaseDimensions, size2=wireOutletTopDimensions,
+        h=wireOutletThickness,
+        anchor = anchor, spin = spin, orient = orient) {
+            position(TOP)
+            xcopies(n = 3, spacing = wireDiameter)
+                let(color = $idx % 3 == 0
+                    ? "whiteSmoke"
+                    : $idx % 3 == 1
+                        ? "red"
+                        : "darkSlateGrey")
+                color_this(color)
+                sphere(d = wireDiameter);
+        
+            children();
+    };
 }
 
 /*

@@ -921,6 +921,38 @@ module BuildGluedCylinders(r, spread, length, tangent, roundEnds = true) {
     glued_circles(r = r, spread = spread, tangent = tangent);
 }
 
+/*
+    Constructs a cuboid with chamfers applied to the top and bottom faces, but rounding
+    applied to the vertical edges.
+
+    Name inspired by Slant3D, who recommends you make all parts this shape which is really
+    good for mass production 3d printing
+    
+    dimensions : [x, y, z] dimensions of the cuboid
+    chamfer : chamfer to the top and bottom faces
+    verticalRounding : rounding to apply to the vertical edges (if -1, chamfer value will be
+        applied, behavior changed to joint if makeVerticalRoundingSmooth is true, joint is the
+        distance inwards from the corner at which the transition begins)
+    makeVerticalRoundingSmooth : if true, rounds the corners using the smooth function
+    smoothVerticalRoundingK : k value to use for smooth rounding (0.7 by default to make
+        joint and radius effects similar)
+*/
+module BuildMassProductionCuboid(dimensions, chamfer, verticalRounding = -1,
+    makeVerticalRoundingSmooth = false, smoothVerticalRoundingK = 0.5) {
+    rounding = (verticalRounding == -1) ? chamfer : verticalRounding;
+    
+    // Create the outline for the offset sweep
+    sharpOutline = rect([dimensions.x, dimensions.y]);
+    outline = makeVerticalRoundingSmooth
+        ? round_corners(sharpOutline, joint = rounding, method = "smooth", k = smoothVerticalRoundingK,
+            closed = true)
+        : round_corners(sharpOutline, radius = rounding, closed = true);
+
+    // Build the shape using offset sweep
+    offsetProfile = os_chamfer(height = chamfer);
+    offset_sweep(outline, height = dimensions.z, bottom=offsetProfile, top=offsetProfile);
+}
+
 // ===== 2D Geometry =====
 /*
     Creates a region that can be used to round corners to a desired radius.
