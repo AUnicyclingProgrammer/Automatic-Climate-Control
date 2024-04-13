@@ -169,7 +169,7 @@ topTest = true;
 
 // ----- Constructing Assembly -----
 // expose_anchors()
-right(servoBodyDimensions.x + 4)
+*right(servoBodyDimensions.x + 4)
 BuildMicroServo(anchor = "bracketCenter") {
     // show_anchors(s = 3);
 };
@@ -242,7 +242,7 @@ module BuildMicroServoDimensionsTest(buildTopTestInstead = false) {
             if (buildTopTestInstead) {
                 position(BOT)
                 tag("keep")
-                // tag("hidden")
+                tag("hidden")
                 BuildMicroServo(anchor = "bracketTop") {
                     position("interfaceTop")
                     tag("keep")
