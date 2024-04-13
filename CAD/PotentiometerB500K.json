@@ -1,0 +1,16 @@
+{
+    "fileFormatVersion": "1",
+    "parameterSets": {
+        "New set 1": {
+            "$slop": "0.20000000000000001",
+            "bodyDiameter": "16.5",
+            "bodyHeight": "9.4000000000000004",
+            "bodyRounding": "1",
+            "oversize": "false",
+            "scooch": "0.01",
+            "tabHeight": "2.5",
+            "tabLength": "1.25",
+            "tabWidth": "2.75"
+        }
+    }
+}
