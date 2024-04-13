@@ -154,6 +154,9 @@ wireOutletPlacementHeight = 4;
 // Diameter of the servo wires
 wireDiameter = 1.25;
 
+// Extra space to add to the servo negative for the wires to route through
+wireClearance = 2;
+
 
 /*[Misc.]*/
 // Rounding to apply to the vertical edges, value is approximate
@@ -164,12 +167,74 @@ verticalEdgeRounding = 1.5;
 
 // ----- Constructing Assembly -----
 // expose_anchors()
-BuildMicroServo() {
+right(servoBodyDimensions.x + 4)
+BuildMicroServo(anchor = "bracketCenter") {
+    // show_anchors(s = 3);
+};
+
+BuildMicroServoHoleNegative() {
     // show_anchors(s = 3);
 };
 
 
 // ----- Modules and Functions -----
+
+// --- Hole Negative ---
+/*
+    Builds a shape that can be subtracted to create a hole to mount the servo to.
+
+    Has all mounting plate anchors
+*/
+module BuildMicroServoHoleNegative(anchor = CENTER, spin = 0, orient = UP) {
+    // Making attachable
+    toMountCenter = [0,0,0];
+    mountReferenceLocation = [mountingHoleSpacingWidth/2, mountingHoleSpacingLength/2, mountingPlateDimensions.z/2];
+    anchors = [
+        // Top of Bracket
+        named_anchor("topBackRightMount", toMountCenter + ApplyVectorMultiplicationMask(mountReferenceLocation, [1,1,1]), UP, 0),
+        named_anchor("topBackLeftMount", toMountCenter + ApplyVectorMultiplicationMask(mountReferenceLocation, [-1,1,1]), UP, 0),
+        named_anchor("topFrontRightMount", toMountCenter + ApplyVectorMultiplicationMask(mountReferenceLocation, [1,-1,1]), UP, 0),
+        named_anchor("topFrontLeftMount", toMountCenter + ApplyVectorMultiplicationMask(mountReferenceLocation, [-1,-1,1]), UP, 0),
+        
+        // Bottom of Bracket
+        named_anchor("bottomBackRightMount", toMountCenter + ApplyVectorMultiplicationMask(mountReferenceLocation, [1,1,-1]), DOWN, 0),
+        named_anchor("bottomBackLeftMount", toMountCenter + ApplyVectorMultiplicationMask(mountReferenceLocation, [-1,1,-1]), DOWN, 0),
+        named_anchor("bottomFrontRightMount", toMountCenter + ApplyVectorMultiplicationMask(mountReferenceLocation, [1,-1,-1]), DOWN, 0),
+        named_anchor("bottomFrontLeftMount", toMountCenter + ApplyVectorMultiplicationMask(mountReferenceLocation, [-1,-1,-1]), DOWN, 0),
+    ];
+
+    attachable(anchor, spin, orient, size = mountingPlateDimensions, anchors = anchors) {
+        union() {
+            // Just a visual reference in case I need to toggle it
+            // _BuildMountingPlate();
+
+            // Creating the negative
+            servoNegativeDimensions = servoBodyDimensions + 2*get_slop()*[1,1,1];
+            toBottomOfServo = mountingPlateDimensions.z/2 + mountingPlatePlacementHeight;
+
+            down(toBottomOfServo + get_slop())
+            cuboid(servoNegativeDimensions,
+                rounding = verticalEdgeRounding, except = [TOP, BOT],
+                anchor = BOT) {
+                // Adding the clearance for the wires
+                position(BACK)
+                prismoid(size1 = [wireOutletBaseDimensions.x, servoNegativeDimensions.z],
+                    size2 = [wireOutletTopDimensions.x, servoNegativeDimensions.z],
+                    h = wireOutletThickness,
+                    anchor = BOT, orient = BACK) {
+                        // Making a bit of extra space for the wires to go through
+                        align(TOP)
+                        cuboid([wireOutletTopDimensions.x,servoNegativeDimensions.z,
+                            wireClearance]);
+                    };
+                };
+        }
+
+        children();
+    };
+}
+
+// --- Micro Servo ---
 /*
     Builds an attachable micro size servo
 
@@ -246,14 +311,12 @@ module BuildMicroServo(anchor = CENTER, spin = 0, orient = UP) {
 
             position(BOT)
             up(mountingPlatePlacementHeight)
-            _BuildMountingPlate();
+            _BuildMountingPlate(anchor = BOT);
 
             position(BACK)
             down(servoBodyDimensions.z/2 - wireOutletBaseDimensions.y/2)
             up(wireOutletPlacementHeight)
-            _BuildWireOutlet(anchor = BOT, orient = BACK, spin = 0) {
-                
-            };
+            _BuildWireOutlet(anchor = BOT, orient = BACK, spin = 0);
         };
 
         children();
@@ -325,28 +388,31 @@ module _BuildBody(anchor = CENTER, spin = 0, orient = UP) {
 /*
     Buildings the mounting plate for the servo
 */
-module _BuildMountingPlate() {
+module _BuildMountingPlate(anchor = CENTER, spin = 0, orient = UP) {
     // --- Calculations and Definitions ---
     holeHeight = mountingPlateDimensions.z + 2*scooch;
     
     // --- Building Mounting Plate ---
-    up(mountingPlateDimensions.z/2)
-    difference() {
-        // Mounting Plate
-        cuboid(mountingPlateDimensions, rounding = verticalEdgeRounding,
-            except = [TOP, BOT]);
+    attachable(anchor, spin, orient, size = mountingPlateDimensions) {
+        difference() {
+            // Mounting Plate
+            cuboid(mountingPlateDimensions, rounding = verticalEdgeRounding,
+                except = [TOP, BOT]);
 
-        // Screw Holes
-        grid_copies(n = 2, spacing = [mountingHoleSpacingWidth, mountingHoleSpacingLength]) {
-            // Hole
-            zcyl(d = mountingHoleDiameter, h = holeHeight);
-            
-            // Slot
-            slotDimensions = [mountingHoleDiameter, mountingHoleSlotWidth, holeHeight];
-            
-            zrot(sign($pos.y)*90)
-                cuboid(slotDimensions, anchor = LEFT);
+            // Screw Holes
+            grid_copies(n = 2, spacing = [mountingHoleSpacingWidth, mountingHoleSpacingLength]) {
+                // Hole
+                zcyl(d = mountingHoleDiameter, h = holeHeight);
+                
+                // Slot
+                slotDimensions = [mountingHoleDiameter, mountingHoleSlotWidth, holeHeight];
+                
+                zrot(sign($pos.y)*90)
+                    cuboid(slotDimensions, anchor = LEFT);
+            }
         }
+
+        children();
     }
 }
 
