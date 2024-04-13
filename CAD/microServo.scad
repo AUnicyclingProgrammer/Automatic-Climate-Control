@@ -157,10 +157,12 @@ wireDiameter = 1.25;
 // Extra space to add to the servo negative for the wires to route through
 wireClearance = 2;
 
-
 /*[Misc.]*/
 // Rounding to apply to the vertical edges, value is approximate
 verticalEdgeRounding = 1.5;
+
+/*[Testing]*/
+topTest = true;
 
 // ----- Development -----
 
@@ -172,20 +174,106 @@ BuildMicroServo(anchor = "bracketCenter") {
     // show_anchors(s = 3);
 };
 
-BuildMicroServoHoleNegative() {
+*BuildMicroServoHoleNegative(disableWireTrack = false) {
     // show_anchors(s = 3);
 };
 
+BuildMicroServoDimensionsTest(buildTopTestInstead = topTest) {
+
+};
+
+
 
 // ----- Modules and Functions -----
+
+// --- Test Shape ---
+/*
+    Generates a test print that can be used to confirm that the servo model has the same
+        dimensions as the actual servo in the real world.
+
+    buildTopTestInstead : if true, builds test for the top, if false builds test for the bottom
+*/
+module BuildMicroServoDimensionsTest(buildTopTestInstead = false) {
+    testShapeBorder = 3;
+
+    testShapeDimensions = mountingPlateDimensions + [2*3,2*3,0];
+
+    interfaceRingOuterDiameter = interfaceOuterDiameter + 1 + 2*testShapeBorder;
+    
+    // Creating the test shape
+    diff("testDiff")
+    hide("hidden")
+    union() {
+        cuboid(testShapeDimensions, rounding = testShapeBorder, except = [TOP,BOT]) {
+            tag("testDiff")
+            position(TOP)
+            BuildMicroServoHoleNegative(disableWireTrack = buildTopTestInstead, anchor = BOT) {
+                // Just for reference
+                // show_anchors(s = 3);
+                
+                // Punching holes
+                // Front
+                attach("bottomFrontRightMount", BOT, overlap = scooch)
+                zcyl(d = mountingHoleDiameter, h = 2*testShapeDimensions.z);
+                
+                attach("bottomFrontLeftMount", BOT, overlap = scooch)
+                zcyl(d = mountingHoleDiameter, h = 2*testShapeDimensions.z);
+                
+                // Back
+                attach("bottomBackRightMount", BOT, overlap = scooch)
+                zcyl(d = mountingHoleDiameter, h = 2*testShapeDimensions.z);
+                
+                attach("bottomBackLeftMount", BOT, overlap = scooch)
+                zcyl(d = mountingHoleDiameter, h = 2*testShapeDimensions.z);
+
+                // Adding Things for Top Test
+                if (buildTopTestInstead) {
+                    // Adding arm to support interface locator
+                    tag("keep")
+                    position(LEFT+BOT)
+                    back(servoBodyDimensions.y/2 - interfaceDistanceFromBack)
+                    left(get_slop())
+                    cuboid([testShapeBorder - get_slop(), interfaceRingOuterDiameter,
+                        servoBodyDimensions.z - mountingPlatePlacementHeight],
+                        anchor = BOT+RIGHT);
+                }
+            };
+
+            if (buildTopTestInstead) {
+                position(BOT)
+                tag("keep")
+                // tag("hidden")
+                BuildMicroServo(anchor = "bracketTop") {
+                    position("interfaceTop")
+                    tag("keep")
+                    tube(id = interfaceOuterDiameter + 1, wall = testShapeBorder,
+                        h = testShapeDimensions.z,
+                        anchor = TOP);
+
+                    position("interfaceTop")
+                    tag("keep")
+                    left(interfaceOuterDiameter + interfaceInnerDiameter/2)
+                    cuboid([testShapeDimensions.x/2 - interfaceInnerDiameter,
+                        interfaceRingOuterDiameter*sin(45),
+                        testShapeDimensions.z],
+                        anchor = TOP
+                        );
+                };
+            }
+        };
+    }
+}
 
 // --- Hole Negative ---
 /*
     Builds a shape that can be subtracted to create a hole to mount the servo to.
 
     Has all mounting plate anchors
+
+    disableWireTrack : if true, won't include the slot that makes room for the wires
 */
-module BuildMicroServoHoleNegative(anchor = CENTER, spin = 0, orient = UP) {
+module BuildMicroServoHoleNegative(disableWireTrack = false, 
+    anchor = CENTER, spin = 0, orient = UP) {
     // Making attachable
     toMountCenter = [0,0,0];
     mountReferenceLocation = [mountingHoleSpacingWidth/2, mountingHoleSpacingLength/2, mountingPlateDimensions.z/2];
@@ -216,18 +304,23 @@ module BuildMicroServoHoleNegative(anchor = CENTER, spin = 0, orient = UP) {
             cuboid(servoNegativeDimensions,
                 rounding = verticalEdgeRounding, except = [TOP, BOT],
                 anchor = BOT) {
-                // Adding the clearance for the wires
-                position(BACK)
-                prismoid(size1 = [wireOutletBaseDimensions.x, servoNegativeDimensions.z],
-                    size2 = [wireOutletTopDimensions.x, servoNegativeDimensions.z],
-                    h = wireOutletThickness,
-                    anchor = BOT, orient = BACK) {
+                if (disableWireTrack == false) {
+                    // Adding the clearance for the wires
+                    position(BACK)
+                    fwd(scooch)
+                    prismoid(size1 = [wireOutletBaseDimensions.x, servoNegativeDimensions.z],
+                        size2 = [wireOutletTopDimensions.x, servoNegativeDimensions.z],
+                        h = wireOutletThickness,
+                        anchor = BOT, orient = BACK) {
+                        
                         // Making a bit of extra space for the wires to go through
+                        down(scooch)
                         align(TOP)
                         cuboid([wireOutletTopDimensions.x,servoNegativeDimensions.z,
                             wireClearance]);
                     };
                 };
+            }
         }
 
         children();
