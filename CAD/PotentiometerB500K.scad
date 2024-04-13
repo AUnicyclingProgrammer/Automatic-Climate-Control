@@ -79,14 +79,55 @@ tabDimensions = [tabLength, tabWidth, tabHeight];
 // Rounding on the bottom of the body
 bodyRounding = 1;
 
-/*[Pins]*/
+/*[PCB and Pins]*/
+
+// Length of the PCB (spans the pins)
+pcbLength = 15.5;
+
+// Width of the PCB (spans to the far side of the potentiometer)
+pcbWidth = 20.25;
+
+// Thickness of the PCB (includes the pins just to be safe)
+pcbHeight = 2;
+
+pcbDimensions = [pcbLength, pcbWidth, pcbHeight];
+
+// Distance the bottom of the PCB is from the bottom of the body
+pcbPlacementHeight = 5.75;
+
+// Width of each pin
+pinWidth = 1;
+
+// Length of each pin
+pinLength = 5;
+
+// Thickness of each pin
+pinHeight = 1.25;
+
+pinDimensions = [pinWidth, pinLength, pinHeight];
+
+// The width of the pin material that overlaps with the PCB
+pinOverlapWidth = 3.75;
+
+// The amount of the pins overlap with the PCB
+pinOverlapLength = 4.5;
+
+// Thickness of the pin material that overlaps with the PCB
+pinOverlapHeight = 0.5;
+
+pinOverlapDimensions = [pinOverlapWidth, pinOverlapLength, pinOverlapHeight];
 
 /*[Shaft]*/
 
 /*[Knob]*/
 
 /*[Misc.]*/
+$metalColor = "lightGrey";
+$pcbColor = "peru";
+
 oversize = false;
+
+// ----- Global Variables -----
 
 // ----- Development -----
 
@@ -103,24 +144,126 @@ BuildPotentiometer(oversizeForNegative = oversize) {
     oversizeForNegative : if true, increases some dimensions by $slop so it can be used
         for making a negative
 */
-module BuildPotentiometer(oversizeForNegative = false) {
+module BuildPotentiometer(oversizeForNegative = false,
+    anchor = CENTER, spin = 0, orient = UP) {
+
     oversizeBy = oversizeForNegative ? get_slop() : 0;
 
-    color_this("lightGrey")   
-    intersection() {
-        // Potentiometer
-        zcyl(d = bodyDiameter + oversizeBy, h = bodyHeight + oversizeBy,
-            rounding1 = bodyRounding) {
-                color_this("lightGrey")   
-                position(TOP+LEFT)
-                cuboid(tabDimensions + oversizeBy*[2,2,1],
-                    rounding = min(tabDimensions)/2, except = [TOP, BOT],
-                    anchor = BOT+LEFT);
+    _BuildBody(oversizeBy) {
+        show_anchors(s = 3);
 
+        _BuildPCBandPins(oversizeBy);
+    };
+}
+
+/*
+    Builds the PCB and the pins
+
+    oversizeBy : the amount the part should be oversized by
+*/
+module _BuildPCBandPins(oversizeBy,
+    anchor = CENTER, spin = 0, orient = UP) {
+    
+    // Key values
+    potentiometerDiameter = bodyDiameter + 2*oversizeBy;
+
+    pcbCuboidDimensions = pcbDimensions + oversizeBy*[2,2,2]
+        -[0,potentiometerDiameter/2,0];
+
+    // Building PCB
+    union() {
+        // Part that goes through potentiometer body
+        color_this($pcbColor)
+        zcyl(d = potentiometerDiameter, h = pcbCuboidDimensions.z) {
+            // PCB
+            color_this($pcbColor)
+            position(CENTER)
+            cuboid(pcbCuboidDimensions, anchor = BACK) {
+                if (approx(oversizeBy, 0)) {
+                    // Pins
+                    position(BOT+FRONT)
+                    xcopies(n = 3, spacing = 0.2*INCH)
+                    _BuildPin(anchor = BACK+TOP);
+                } else {
+                    // Making space for pins
+                    position(BOT+FRONT)
+                    back(pinOverlapDimensions.y)
+                    cuboid([pcbCuboidDimensions.x,
+                        pinDimensions.y + pinOverlapDimensions.y,
+                        pinDimensions.z]
+                        + get_slop()*[0,2,2],
+                        anchor = BACK+TOP
+                    );
+
+                    // "Extending" PCB
+                    position(FRONT)
+                    cuboid([pcbCuboidDimensions.x,
+                        pinDimensions.y + 2*get_slop(),
+                        pcbCuboidDimensions.z],
+                        anchor = BACK);
+                }
+            };
         };
+    }
+}
 
-        // Outline
-        zcyl(d = bodyDiameter + oversizeBy, h = 2*(bodyHeight + oversizeBy));
+/*
+    Builds a singular pin
+*/
+module _BuildPin(anchor = CENTER, spin = 0, orient = UP) {
+    color_this($metalColor)
+    union() {
+        // Pin
+        cuboid(pinDimensions, chamfer = pinDimensions.x/3,
+            edges = [FRONT+RIGHT, FRONT+LEFT, BACK+BOT],
+            anchor = anchor, spin = spin, orient = orient) {
+                // Pin overlap
+                color_this($metalColor)
+                position(BACK+TOP)
+                cuboid(pinOverlapDimensions, rounding = pinOverlapDimensions.x/2,
+                    edges = [BACK+RIGHT, BACK+LEFT],
+                    anchor = FRONT+TOP);
+
+            // Making attachable
+            children();
+        };
+    }
+}
+
+/*
+    Builds the body / base of the potentiometer
+
+    oversizeBy : the amount the part should be oversized by
+*/
+module _BuildBody(oversizeBy, anchor = CENTER, spin = 0, orient = UP) {
+    // Key values
+    potentiometerDiameter = bodyDiameter + 2*oversizeBy;
+    potentiometerHeight = bodyHeight + oversizeBy;
+
+    anchors = [
+        named_anchor("randomAnchor", [0, 5, 10], UP, 0)
+    ];
+    
+    // Making attachable
+    attachable(anchor, spin, orient, d = potentiometerDiameter, h = potentiometerHeight,
+        anchors = anchors) {
+        recolor($metalColor)
+        intersection() {
+            // Potentiometer
+            zcyl(d = potentiometerDiameter, h = potentiometerHeight,
+                rounding1 = bodyRounding) {
+                    position(TOP+LEFT)
+                    cuboid(tabDimensions + oversizeBy*[2,2,1],
+                        rounding = min(tabDimensions)/2, except = [TOP, BOT],
+                        anchor = BOT+LEFT);
+
+            };
+
+            // Outline
+            zcyl(d = bodyDiameter + oversizeBy, h = 2*(bodyHeight + oversizeBy));
+        }
+
+        children();
     }
 }
 

@@ -55,6 +55,8 @@ scooch = 0.010; //0.001 //Just for making sure parts actually go together
 
 /*[Misc.]*/
 
+// ----- Global Variables -----
+
 // ----- Development -----
 
 

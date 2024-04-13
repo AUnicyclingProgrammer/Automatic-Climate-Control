@@ -2,6 +2,8 @@
     "fileFormatVersion": "1",
     "parameterSets": {
         "New set 1": {
+            "$preview_fa": "4",
+            "$preview_fs": "0.14999999999999991",
             "$slop": "0.20000000000000001",
             "bodyDiameter": "16.5",
             "bodyHeight": "9.4000000000000004",
