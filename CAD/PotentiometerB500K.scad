@@ -119,6 +119,12 @@ pinOverlapDimensions = [pinOverlapWidth, pinOverlapLength, pinOverlapHeight];
 
 /*[Shaft]*/
 
+// Diameter of the threaded shaft (threads included, thus it's the nominal diameter)
+shaftDiameter = 6.8;
+
+// Height of the threaded part of the shaft
+shaftHeight = 6.5;
+
 /*[Knob]*/
 
 /*[Misc.]*/
@@ -152,10 +158,35 @@ module BuildPotentiometer(oversizeForNegative = false,
     _BuildBody(oversizeBy) {
         show_anchors(s = 3);
 
-        _BuildPCBandPins(oversizeBy);
+        // PCB and pins
+        position(BOT)
+        up(pcbPlacementHeight)
+        _BuildPCBandPins(oversizeBy, anchor = BOT);
+
+        // Shaft
+        position(TOP)
+        _BuildShaft(oversizeBy, anchor = BOT) {
+
+        };
     };
 }
 
+/*
+    Builds the threaded shaft
+
+    oversizeBy : the amount the part should be oversized by
+*/
+module _BuildShaft(oversizeBy,
+    anchor = CENTER, spin = 0, orient = UP) {
+    color_this($metalColor)
+    if (approx(oversizeBy,0)) {
+        threaded_rod(h = shaftHeight, d = shaftDiameter, pitch = 0.5,
+            anchor = anchor, spin = spin, orient = orient);
+    } else {
+        zcyl(h = shaftHeight, d = shaftDiameter + 2*oversizeBy,
+            anchor = anchor, spin = spin, orient = orient);
+    }
+}
 /*
     Builds the PCB and the pins
 
