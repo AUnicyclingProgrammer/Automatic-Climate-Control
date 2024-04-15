@@ -127,6 +127,27 @@ shaftHeight = 6.5;
 
 /*[Knob]*/
 
+// Diameter of the knob
+knobDiameter = 6;
+
+// Height of the knob
+knobHeight = 8.5;
+
+// Diameter of the tapered part of the knob (also the inner diameter of the splined part)
+knobTaperDiameter = 4.75;
+
+// Height of the tapered part of the knob
+knobTaperHeight = 1;
+
+// Height of the base of the knob
+knobBaseHeight = 1.5;
+
+// Number of splines on the knob (at least the number it would have if it didn't have the slot)
+knobSplineCount = 18;
+
+// Thickness of the slot in the knob
+knobSlotThickness = 1;
+
 /*[Misc.]*/
 $metalColor = "lightGrey";
 $pcbColor = "peru";
@@ -134,6 +155,7 @@ $pcbColor = "peru";
 oversize = false;
 
 // ----- Global Variables -----
+knobChamfer = (knobDiameter - knobTaperDiameter)/2;
 
 // ----- Development -----
 
@@ -156,7 +178,7 @@ module BuildPotentiometer(oversizeForNegative = false,
     oversizeBy = oversizeForNegative ? get_slop() : 0;
 
     _BuildBody(oversizeBy) {
-        show_anchors(s = 3);
+        // show_anchors(s = 3);
 
         // PCB and pins
         position(BOT)
@@ -166,9 +188,64 @@ module BuildPotentiometer(oversizeForNegative = false,
         // Shaft
         position(TOP)
         _BuildShaft(oversizeBy, anchor = BOT) {
-
+            // Knob
+            position(TOP)
+            _BuildKnob();
         };
     };
+}
+
+/*
+    Builds the knob
+*/
+module _BuildKnob(anchor = CENTER, spin = 0, orient = UP) {
+    // Key values
+    knobSplineHeight = knobHeight - knobBaseHeight - knobTaperHeight;
+
+    // Making attachable
+    attachable(anchor, spin, orient, d = knobDiameter, h = knobHeight) {
+        color_this($metalColor)
+        // render()
+        diff("knobDiff") {
+            // Base
+            zcyl(d = knobDiameter, h = knobBaseHeight, chamfer2 = knobChamfer,
+                anchor = BOT);
+
+            // Taper
+            tag("keep")
+            up(knobBaseHeight)
+            zcyl(d = knobTaperDiameter, h = knobTaperHeight,
+                anchor = BOT);
+    
+            // Splines
+            up(knobBaseHeight + knobTaperHeight)
+            zcyl(d = knobDiameter, h = knobSplineHeight, chamfer = knobChamfer,
+                anchor = BOT);
+
+            /* Not going to worry about adding the splines, it makes it lag and I
+            don't actually need the extra detail */
+
+            /* Best spline code I came up with, laggy but renders correctly
+            sliceAngle = 4*360/knobSplineCount;
+
+            tag("knobDiff")
+            zrot_copies(n = knobSplineCount)
+            right(knobDiameter/2 - knobChamfer)
+            zrot(-sliceAngle/2)
+            up(knobBaseHeight + knobTaperHeight)
+            pie_slice(ang = sliceAngle, r = 1.5*knobChamfer, l = knobHeight + 2*scooch,
+                $fn = 8); */
+
+            // Slot
+            slotDimensions = [knobDiameter + 2*scooch, knobSlotThickness, knobHeight];
+
+            tag("knobDiff")
+            up(knobBaseHeight)
+            cuboid(slotDimensions, anchor = BOT);
+        }
+
+        children();
+    }
 }
 
 /*
@@ -181,12 +258,13 @@ module _BuildShaft(oversizeBy,
     color_this($metalColor)
     if (approx(oversizeBy,0)) {
         threaded_rod(h = shaftHeight, d = shaftDiameter, pitch = 0.5,
-            anchor = anchor, spin = spin, orient = orient);
+            anchor = anchor, spin = spin, orient = orient) children();
     } else {
         zcyl(h = shaftHeight, d = shaftDiameter + 2*oversizeBy,
-            anchor = anchor, spin = spin, orient = orient);
+            anchor = anchor, spin = spin, orient = orient) children();
     }
 }
+
 /*
     Builds the PCB and the pins
 
