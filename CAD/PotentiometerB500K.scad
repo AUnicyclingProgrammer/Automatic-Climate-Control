@@ -161,18 +161,47 @@ knobChamfer = (knobDiameter - knobTaperDiameter)/2;
 
 // ----- Constructing Assembly -----
 
-// right(bodyDiameter)
-expose_anchors()
+*right(bodyDiameter + 5)
+// expose_anchors()
 BuildPotentiometer() {
-    show_anchors(s = 2);
+    // show_anchors(s = 2);
 };
 
-// BuildPotentiometerHoleNegative() {
-//     // show_anchors(s = 2)
-// }
+*left(bodyDiameter + 5)
+BuildPotentiometerHoleNegative() {
+    // show_anchors(s = 2)
+}
+
+BuildPotentiometerDimensionsTest();
 
 
 // ----- Modules and Functions -----
+/*
+    Generates a test print that can be used to confirm that the model has the same
+        dimensions as the actual part in the real world.
+*/
+module BuildPotentiometerDimensionsTest() {
+    testShapeBorder = 3;
+
+    testShapeDimensions = [
+        bodyDiameter,
+        pcbDimensions.y + pinLength,
+        bodyHeight + shaftHeight/2
+    ] + [2*3,2*3,0];
+
+    diff("potDiff")
+    union() {
+        // Test Shape Body
+        cuboid(testShapeDimensions, chamfer = testShapeBorder/2) {
+            // Cutting hole
+            tag("potDiff")
+            position(TOP+BACK)
+            fwd(bodyDiameter/2 + testShapeBorder)
+            BuildPotentiometerHoleNegative(anchor = "shaftCenter");
+        };
+    }
+}
+
 /*
     Builds a shape that can be subtracted to create a hole to mount the servo to.
 
@@ -257,6 +286,7 @@ module _BuildKnob(anchor = CENTER, spin = 0, orient = UP) {
     attachable(anchor, spin, orient, d = knobDiameter, h = knobHeight) {
         color_this($metalColor)
         // render()
+        tag_scope()
         diff("knobDiff") {
             // Base
             zcyl(d = knobDiameter, h = knobBaseHeight, chamfer2 = knobChamfer,
@@ -311,7 +341,8 @@ module _BuildShaft(oversizeBy,
         threaded_rod(h = shaftHeight, d = shaftDiameter, pitch = 0.5,
             anchor = anchor, spin = spin, orient = orient) children();
     } else {
-        zcyl(h = shaftHeight, d = shaftDiameter + 2*oversizeBy,
+        down(scooch)
+        zcyl(h = shaftHeight + 2*scooch, d = shaftDiameter + 2*oversizeBy,
             anchor = anchor, spin = spin, orient = orient) children();
     }
 }
@@ -347,11 +378,13 @@ module _BuildPCBandPins(oversizeBy,
                 } else {
                     // Making space for pins
                     position(BOT+FRONT)
-                    back(pinOverlapDimensions.y)
+                    up(scooch)
+                    back(pinOverlapDimensions.y + bodyDiameter/2)
                     cuboid([pcbCuboidDimensions.x,
-                        pinDimensions.y + pinOverlapDimensions.y,
-                        pinDimensions.z]
+                        pinDimensions.y + pinOverlapDimensions.y + bodyDiameter/2,
+                        bodyHeight - pcbPlacementHeight + 3*oversizeBy]
                         + get_slop()*[0,2,2],
+                        rounding = pcbCuboidDimensions.z/2, edges = [FRONT+RIGHT, FRONT+LEFT],
                         anchor = BACK+TOP
                     );
 
@@ -360,6 +393,7 @@ module _BuildPCBandPins(oversizeBy,
                     cuboid([pcbCuboidDimensions.x,
                         pinDimensions.y + 2*get_slop(),
                         pcbCuboidDimensions.z],
+                        rounding = pcbCuboidDimensions.z/2, edges = [FRONT+RIGHT, FRONT+LEFT],
                         anchor = BACK);
                 }
             };
@@ -408,6 +442,7 @@ module _BuildBody(oversizeBy, anchor = CENTER, spin = 0, orient = UP) {
             zcyl(d = potentiometerDiameter, h = potentiometerHeight,
                 rounding1 = bodyRounding) {
                     position(TOP+LEFT)
+                    down(scooch)
                     cuboid(tabDimensions + oversizeBy*[2,2,1],
                         rounding = min(tabDimensions)/2, except = [TOP, BOT],
                         anchor = BOT+LEFT);
@@ -415,7 +450,7 @@ module _BuildBody(oversizeBy, anchor = CENTER, spin = 0, orient = UP) {
             };
 
             // Outline
-            zcyl(d = bodyDiameter + oversizeBy, h = 2*(bodyHeight + oversizeBy));
+            zcyl(d = potentiometerDiameter, h = 2*(bodyHeight + oversizeBy));
         }
 
         children();
