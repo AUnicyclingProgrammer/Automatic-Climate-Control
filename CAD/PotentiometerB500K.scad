@@ -152,7 +152,7 @@ knobSlotThickness = 1;
 $metalColor = "lightGrey";
 $pcbColor = "peru";
 
-oversize = false;
+// oversize = false;
 
 // ----- Global Variables -----
 knobChamfer = (knobDiameter - knobTaperDiameter)/2;
@@ -161,38 +161,89 @@ knobChamfer = (knobDiameter - knobTaperDiameter)/2;
 
 // ----- Constructing Assembly -----
 
-BuildPotentiometer(oversizeForNegative = oversize) {
-    // show_anchors(s = 2);
+// right(bodyDiameter)
+expose_anchors()
+BuildPotentiometer() {
+    show_anchors(s = 2);
 };
 
+// BuildPotentiometerHoleNegative() {
+//     // show_anchors(s = 2)
+// }
+
+
 // ----- Modules and Functions -----
+/*
+    Builds a shape that can be subtracted to create a hole to mount the servo to.
+
+    Has all potentiometer anchors
+*/
+module BuildPotentiometerHoleNegative(anchor = CENTER, spin = 0, orient = UP) {
+    BuildPotentiometer(oversizeForNegative = get_slop(),
+        anchor = anchor, spin = spin, orient = orient);
+}
+
 /*
     Build Potentiometer
 
     oversizeForNegative : if true, increases some dimensions by $slop so it can be used
         for making a negative
 */
-module BuildPotentiometer(oversizeForNegative = false,
+module BuildPotentiometer(oversizeForNegative = 0,
     anchor = CENTER, spin = 0, orient = UP) {
 
+    // Key Values
     oversizeBy = oversizeForNegative ? get_slop() : 0;
+    
+    potentiometerDiameter = bodyDiameter + 2*oversizeBy;
+    potentiometerHeight = bodyHeight + oversizeBy;
 
-    _BuildBody(oversizeBy) {
-        // show_anchors(s = 3);
+    knobSplineHeight = knobHeight - knobBaseHeight - knobTaperHeight;
 
-        // PCB and pins
-        position(BOT)
-        up(pcbPlacementHeight)
-        _BuildPCBandPins(oversizeBy, anchor = BOT);
+    toTopOfShaft = potentiometerHeight/2 + shaftHeight;
+    toTopOfKnob = toTopOfShaft + knobHeight;
 
+    // Making Attachable
+    anchors = [
         // Shaft
-        position(TOP)
-        _BuildShaft(oversizeBy, anchor = BOT) {
-            // Knob
+        named_anchor("shaftBottom", [0,0,potentiometerHeight/2], DOWN, 0),
+        named_anchor("shaftCenter", [0,0,potentiometerHeight/2 + shaftHeight/2], UP, 0),
+        named_anchor("shaftTop", [0,0,toTopOfShaft], UP, 0),
+
+        // Knob
+        named_anchor("knobBottom", [0,0,toTopOfShaft], DOWN, 0),
+        named_anchor("knobCenter", [0,0,toTopOfShaft + knobHeight/2], UP, 0),
+        named_anchor("knobTop", [0,0,toTopOfKnob], UP, 0),
+
+        // Splines
+        named_anchor("splinesBottom", [0,0,toTopOfKnob - knobSplineHeight], DOWN, 0),
+        named_anchor("splinesTop", [0,0,toTopOfKnob - knobSplineHeight/2], UP, 0),
+        named_anchor("splinesTop", [0,0,toTopOfKnob], UP, 0),
+    ];
+    
+    attachable(anchor, spin, orient,
+        d = potentiometerDiameter, h = potentiometerHeight,
+        anchors = anchors) {
+        _BuildBody(oversizeBy) {
+            // show_anchors(s = 3);
+
+            // PCB and pins
+            position(BOT)
+            up(pcbPlacementHeight)
+            _BuildPCBandPins(oversizeBy, anchor = BOT);
+
+            // Shaft
             position(TOP)
-            _BuildKnob();
+            _BuildShaft(oversizeBy, anchor = BOT) {
+                // Knob
+                position(TOP)
+                _BuildKnob();
+            };
         };
-    };
+
+        // For attachments
+        children();
+    }
 }
 
 /*
@@ -348,14 +399,9 @@ module _BuildBody(oversizeBy, anchor = CENTER, spin = 0, orient = UP) {
     // Key values
     potentiometerDiameter = bodyDiameter + 2*oversizeBy;
     potentiometerHeight = bodyHeight + oversizeBy;
-
-    anchors = [
-        named_anchor("randomAnchor", [0, 5, 10], UP, 0)
-    ];
     
     // Making attachable
-    attachable(anchor, spin, orient, d = potentiometerDiameter, h = potentiometerHeight,
-        anchors = anchors) {
+    attachable(anchor, spin, orient, d = potentiometerDiameter, h = potentiometerHeight) {
         recolor($metalColor)
         intersection() {
             // Potentiometer
