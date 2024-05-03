@@ -60,7 +60,7 @@ scooch = 0.010; //0.001 //Just for making sure parts actually go together
 /*[Body]*/
 
 // Diameter of the body of the potentiometer
-bodyDiameter = 16.5;
+bodyDiameter = 17;
 
 // Height of the body of the potentiometer (overall height, overly simplified)
 bodyHeight = 9.4;
@@ -358,13 +358,14 @@ module _BuildPCBandPins(oversizeBy,
     // Key values
     potentiometerDiameter = bodyDiameter + 2*oversizeBy;
 
-    pcbCuboidDimensions = pcbDimensions + oversizeBy*[2,2,2]
+    pcbCuboidDimensions = pcbDimensions + oversizeBy*[2,2,2 + 2]
         -[0,potentiometerDiameter/2,0];
 
     // Building PCB
     union() {
         // Part that goes through potentiometer body
         color_this($pcbColor)
+        up(2*oversizeBy)
         zcyl(d = potentiometerDiameter, h = pcbCuboidDimensions.z) {
             // PCB
             color_this($pcbColor)
