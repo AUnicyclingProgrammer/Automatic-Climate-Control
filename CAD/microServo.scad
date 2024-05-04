@@ -202,15 +202,33 @@ BuildMicroServo(anchor = "bracketCenter") {
 
 };
 
-BuildMicroServoHornNegative() {
+*BuildMicroServoHornNegative() {
     show_anchors(s=1);
 };
+
+BuildMicroServoHornDimensionsTest();
 
 
 
 // ----- Modules and Functions -----
 
 // --- Servo Horn ---
+/*
+    Test shape for the micro servo horn
+*/
+module BuildMicroServoHornDimensionsTest() {
+    testShapeDim = [20, 15, 5];
+    
+    diff()
+    cuboid(testShapeDim, chamfer = 1) {
+        tag("remove")
+        left(5)
+        position(TOP)
+        up(scooch)
+        BuildMicroServoHornNegative(anchor = TOP);
+    };
+};
+
 /*
     Generates an attachable servo horn
 
@@ -229,6 +247,7 @@ module BuildMicroServoHorn(oversizeForNegative = 0,
     // - Making Attachable -
     anchors = [
         named_anchor("interface", [0, 0, -mountThickness/2 + servoHornMountingRecessThickness], UP, 0),
+        named_anchor("bottomFace", [0, 0, mountThickness/2 - hornThickness], UP, 0),
     ];
 
     attachable(anchor, spin, orient, d = mountDiameter, h = mountThickness,
@@ -243,12 +262,14 @@ module BuildMicroServoHorn(oversizeForNegative = 0,
                 up(mountThickness)
                 zcyl(d = mountDiameter, h = mountThickness,
                     anchor = TOP) {
-                    // Removing interior
-                    tag("servoHornDiff")
-                    position(TOP)
-                    up(scooch)
-                    zcyl(d = interfaceOuterDiameter, h = servoHornMountingRecessThickness,
-                        anchor = TOP);
+                    if (oversizeForNegative == 0) {
+                        // Removing interior
+                        tag("servoHornDiff")
+                        position(TOP)
+                        up(scooch)
+                        zcyl(d = interfaceOuterDiameter, h = servoHornMountingRecessThickness,
+                            anchor = TOP);
+                    }
                 };
 
                 // - Arm -
@@ -262,10 +283,12 @@ module BuildMicroServoHorn(oversizeForNegative = 0,
                 }
 
                 // - Hole for Screw -
-                tag("servoHornDiff")
-                down(scooch)
-                zcyl(d = interfaceOuterDiameter/2, h = mountThickness,
-                    anchor = BOT);
+                if (oversizeForNegative == 0) {
+                    tag("servoHornDiff")
+                    down(scooch)
+                    zcyl(d = interfaceOuterDiameter/2, h = mountThickness,
+                        anchor = BOT);
+                }
             }
         }
 
@@ -277,7 +300,9 @@ module BuildMicroServoHorn(oversizeForNegative = 0,
     Generates an attachable negative for the servo horn
 */
 module BuildMicroServoHornNegative(anchor, spin, orient) {
-    BuildMicroServoHorn(anchor=anchor, spin=spin, orient=orient) children();
+    BuildMicroServoHorn(oversizeForNegative = get_slop(),
+        anchor=anchor, spin=spin, orient=orient)
+            children();
 }
 
 /*
