@@ -157,6 +157,26 @@ wireDiameter = 1.25;
 // Extra space to add to the servo negative for the wires to route through
 wireClearance = 2;
 
+/* [Servo Horn Horn] */
+
+// Outer diameter of the servo horn
+servoHornMountDiameter = 7.1;
+
+// Diameter of the end of the servo horn
+servoHornEndDiameter = 3;
+
+// Length of the servo horn (end to end, not center to center)
+servoHornArmLength = 17.3;
+
+// Servo horn thickness
+servoHornThickness = 1.9;
+
+// Thickness of the servo horn mounting ring
+servoHornMountThickness = 3.85;
+
+// Thickness of the part of the servo horn that mounts to the servo
+servoHornMountingRecessThickness = 2.3;
+
 /*[Misc.]*/
 // Rounding to apply to the vertical edges, value is approximate
 verticalEdgeRounding = 1.5;
@@ -178,13 +198,91 @@ BuildMicroServo(anchor = "bracketCenter") {
     // show_anchors(s = 3);
 };
 
-BuildMicroServoDimensionsTest(buildTopTestInstead = topTest) {
+*BuildMicroServoDimensionsTest(buildTopTestInstead = topTest) {
 
+};
+
+BuildMicroServoHornNegative() {
+    show_anchors(s=1);
 };
 
 
 
 // ----- Modules and Functions -----
+
+// --- Servo Horn ---
+/*
+    Generates an attachable servo horn
+
+    oversizeForNegative : if true, oversizes the model so it can be used to create a negative
+*/
+module BuildMicroServoHorn(oversizeForNegative = 0,
+    anchor = CENTER, spin = 0, orient = UP) {
+    // Defining key values
+    mountDiameter = servoHornMountDiameter + 2*oversizeForNegative;
+    mountThickness = servoHornMountThickness + oversizeForNegative;
+
+    hornEndDiameter = servoHornEndDiameter + 2*oversizeForNegative;
+
+    hornThickness = servoHornThickness + 2*oversizeForNegative;
+    
+    // - Making Attachable -
+    anchors = [
+        named_anchor("interface", [0, 0, -mountThickness/2 + servoHornMountingRecessThickness], UP, 0),
+    ];
+
+    attachable(anchor, spin, orient, d = mountDiameter, h = mountThickness,
+        anchors = anchors) {
+        zflip() // Modeled the servo horn upside down
+        down(mountThickness/2)
+        union() {
+            // Center Mount
+            tag_scope()
+            diff("servoHornDiff") {
+                // - Mount -
+                up(mountThickness)
+                zcyl(d = mountDiameter, h = mountThickness,
+                    anchor = TOP) {
+                    // Removing interior
+                    tag("servoHornDiff")
+                    position(TOP)
+                    up(scooch)
+                    zcyl(d = interfaceOuterDiameter, h = servoHornMountingRecessThickness,
+                        anchor = TOP);
+                };
+
+                // - Arm -
+                hull() {
+                    zcyl(d = mountDiameter, h = hornThickness,
+                        anchor = BOT);
+
+                    right(servoHornArmLength - 0.5*(mountDiameter + hornEndDiameter))
+                    zcyl(d = hornEndDiameter, h = hornThickness,
+                        anchor = BOT);
+                }
+
+                // - Hole for Screw -
+                tag("servoHornDiff")
+                down(scooch)
+                zcyl(d = interfaceOuterDiameter/2, h = mountThickness,
+                    anchor = BOT);
+            }
+        }
+
+        children();
+    }
+}
+
+/*
+    Generates an attachable negative for the servo horn
+*/
+module BuildMicroServoHornNegative(anchor, spin, orient) {
+    BuildMicroServoHorn(anchor=anchor, spin=spin, orient=orient) children();
+}
+
+/*
+    Generates a negative of the micro servo arm (that can be used for mounting to)
+*/
 
 // --- Test Shape ---
 /*
@@ -263,6 +361,7 @@ module BuildMicroServoDimensionsTest(buildTopTestInstead = false) {
         };
     }
 }
+
 
 // --- Hole Negative ---
 /*
