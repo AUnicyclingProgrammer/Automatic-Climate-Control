@@ -74,7 +74,7 @@ printMountingPlate = true;
 gearThickness = 6;
 
 // Number of teeth the gears will have
-gearToothCount = 16;
+gearToothCount = 14;
 
 // Distance between the centers of the gear teeth, measured in mm
 gearCircularPitch = 6;
@@ -82,13 +82,21 @@ gearCircularPitch = 6;
 // Helical angle of the gears
 gearHelicalAngle = 37;
 
-/* [Servo Interface] */
+/* [Mounting Plate] */
+
+// Dimensions to make the mounting plate
+mountingPlateDimensions = [70, 47, 8];
+
+// For aligning the plate
+mountingPlateTranslation = [0, -8];
+
+// Clearance between the gears and the mounting plate
+mountingPlateGearClearance = 5;
 
 /* [Potentiometer Interface] */
 
 // Diameter to make the hole in the gear that goes on the potentiometer
 potentiometerInterfaceDiameter = 6;
-
 
 // ----- Parameters -----
 
@@ -99,6 +107,8 @@ potentiometerInterfaceDiameter = 6;
 Variables that can be referenced by anything but that don't matter much. Things like
 cosmetic chamfers or fillets would fall into this category
 */
+
+mountingPlateChamfer = 2;
 
 
 // ----- Development -----
@@ -136,6 +146,12 @@ displacementDistance = CalculateGearDistance(backlash = get_slop());
 
 
 if (renderAssembly) {
+    // Mounting Plate
+    down(gearThickness/2)
+    down(mountingPlateGearClearance)
+    BuildTestingMount(displacement = displacementDistance);
+    
+    // Gear for the potentiometer
     right(displacementDistance/2) {
         BuildPotentiometerGear() {
             tag("keep")
@@ -144,6 +160,7 @@ if (renderAssembly) {
         };
     }
 
+    // Gear for the servo
     left(displacementDistance/2) {
         BuildServoGear() {
             // Visual Reference
@@ -155,10 +172,52 @@ if (renderAssembly) {
             };
         };
     }
+} else {
+    if (printServoGear) {
+        BuildServoGear();
+    }
+
+    if (printPotentiometerGear) {
+        BuildPotentiometerGear();
+    }
+
+    if (printMountingPlate) {
+        BuildTestingMount(displacement = displacementDistance);
+    }
 }
 
 
 // ----- Modules and Functions -----
+
+/*
+    Builds the mounting plate for testing
+
+    dimensions : size to make the mounting plate
+    displacement : distance there should be between the servo and the potentiometer
+*/
+module BuildTestingMount(displacement) {
+    move(mountingPlateTranslation)
+    diff("testingMountDiff")
+    cuboid(mountingPlateDimensions, chamfer = mountingPlateChamfer,
+        anchor = TOP)
+        // Making origin flush with bottom center of gears
+        position(TOP) up(mountingPlateGearClearance) fwd(mountingPlateTranslation.y) {
+            // Potentiometer
+            tag("testingMountDiff")
+            right(displacement/2)
+            up(gearThickness)
+            BuildPotentiometerHoleNegative(anchor = "knobTop");
+            
+            // Servo
+            force_tag("testingMountDiff")
+            left(displacement/2)
+            BuildMicroServoHorn(anchor = "bottomFace") {
+                position("interface")
+                BuildMicroServoHoleNegative(disableWireTrack = true, topMount = true,
+                    anchor = "interfaceTop");
+            };
+        };
+}
 
 /*
     Builds the gear that goes on the potentiometer

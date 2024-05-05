@@ -189,13 +189,14 @@ topTest = true;
 
 // ----- Constructing Assembly -----
 // expose_anchors()
-*right(servoBodyDimensions.x + 4)
+right(servoBodyDimensions.x + 4)
 BuildMicroServo(anchor = "bracketCenter") {
-    // show_anchors(s = 3);
+    show_anchors(s = 3);
 };
 
-*BuildMicroServoHoleNegative(disableWireTrack = false) {
-    // show_anchors(s = 3);
+BuildMicroServoHoleNegative(disableWireTrack = false, topMount = true,
+    anchor = "bracketCenter") {
+    show_anchors(s = 3);
 };
 
 *BuildMicroServoDimensionsTest(buildTopTestInstead = topTest) {
@@ -206,7 +207,7 @@ BuildMicroServo(anchor = "bracketCenter") {
     show_anchors(s=1);
 };
 
-BuildMicroServoHornDimensionsTest();
+*BuildMicroServoHornDimensionsTest();
 
 
 
@@ -398,59 +399,73 @@ module BuildMicroServoDimensionsTest(buildTopTestInstead = false) {
     Has all mounting plate anchors
 
     disableWireTrack : if true, won't include the slot that makes room for the wires
+    topMount : if true, the top of the servo is supposed to go into the hole. This dictates
+        where the slot for the mounting plate goes
 */
-module BuildMicroServoHoleNegative(disableWireTrack = false, 
+module BuildMicroServoHoleNegative(disableWireTrack = false, topMount = false,
     anchor = CENTER, spin = 0, orient = UP) {
-    // Making attachable
-    toMountCenter = [0,0,0];
-    mountReferenceLocation = [mountingHoleSpacingWidth/2, mountingHoleSpacingLength/2, mountingPlateDimensions.z/2];
-    anchors = [
-        // Top of Bracket
-        named_anchor("topBackRightMount", toMountCenter + ApplyVectorMultiplicationMask(mountReferenceLocation, [1,1,1]), UP, 0),
-        named_anchor("topBackLeftMount", toMountCenter + ApplyVectorMultiplicationMask(mountReferenceLocation, [-1,1,1]), UP, 0),
-        named_anchor("topFrontRightMount", toMountCenter + ApplyVectorMultiplicationMask(mountReferenceLocation, [1,-1,1]), UP, 0),
-        named_anchor("topFrontLeftMount", toMountCenter + ApplyVectorMultiplicationMask(mountReferenceLocation, [-1,-1,1]), UP, 0),
-        
-        // Bottom of Bracket
-        named_anchor("bottomBackRightMount", toMountCenter + ApplyVectorMultiplicationMask(mountReferenceLocation, [1,1,-1]), DOWN, 0),
-        named_anchor("bottomBackLeftMount", toMountCenter + ApplyVectorMultiplicationMask(mountReferenceLocation, [-1,1,-1]), DOWN, 0),
-        named_anchor("bottomFrontRightMount", toMountCenter + ApplyVectorMultiplicationMask(mountReferenceLocation, [1,-1,-1]), DOWN, 0),
-        named_anchor("bottomFrontLeftMount", toMountCenter + ApplyVectorMultiplicationMask(mountReferenceLocation, [-1,-1,-1]), DOWN, 0),
-    ];
-
-    attachable(anchor, spin, orient, size = mountingPlateDimensions, anchors = anchors) {
-        union() {
-            // Just a visual reference in case I need to toggle it
-            // _BuildMountingPlate();
-
-            // Creating the negative
-            servoNegativeDimensions = servoBodyDimensions + 2*get_slop()*[1,1,1];
-            toBottomOfServo = mountingPlateDimensions.z/2 + mountingPlatePlacementHeight;
-
-            down(toBottomOfServo + get_slop())
-            cuboid(servoNegativeDimensions,
-                rounding = verticalEdgeRounding, except = [TOP, BOT],
-                anchor = BOT) {
-                if (disableWireTrack == false) {
-                    // Adding the clearance for the wires
-                    position(BACK)
-                    fwd(scooch)
-                    prismoid(size1 = [wireOutletBaseDimensions.x, servoNegativeDimensions.z],
-                        size2 = [wireOutletTopDimensions.x, servoNegativeDimensions.z],
-                        h = wireOutletThickness,
-                        anchor = BOT, orient = BACK) {
-                        
-                        // Making a bit of extra space for the wires to go through
-                        down(scooch)
-                        align(TOP)
-                        cuboid([wireOutletTopDimensions.x,servoNegativeDimensions.z,
-                            wireClearance]);
-                    };
-                };
-            }
-        }
-
+    // Using BuildMicroServo to handle attachments
+    tag_scope()
+    // Using the servo for all the key anchors
+    hide("hidden")
+    tag("hidden")
+    BuildMicroServo(anchor=anchor, spin=spin, orient=orient)
+    tag("show") {
+        // tag("keep")
         children();
+        
+        // Just a visual reference in case I need to toggle it
+        // _BuildMountingPlate();
+
+        // Creating the negative
+        servoNegativeDimensions = servoBodyDimensions + 2*get_slop()*[1,1,1];
+        toBottomOfServo = mountingPlateDimensions.z/2 + mountingPlatePlacementHeight;
+
+        down(get_slop())
+        cuboid(servoNegativeDimensions,
+            rounding = verticalEdgeRounding, except = [TOP, BOT]) {
+            
+            // Adding Recess for Mounting Plate
+            if (topMount) {
+                topMountDimensions = mountingPlateDimensions + [
+                    2*get_slop(),
+                    2*get_slop(),
+                    mountingPlatePlacementHeight + 2*get_slop()
+                ];
+                position(BOT)
+                cuboid(topMountDimensions,
+                    rounding = verticalEdgeRounding, except = [TOP, BOT],
+                    anchor = BOT);
+            } else {
+                bottomMountDimensions = mountingPlateDimensions + [
+                    2*get_slop(),
+                    2*get_slop(),
+                    servoNegativeDimensions.z - mountingPlatePlacementHeight 
+                        - mountingPlateDimensions.z
+                ];
+                position(TOP)
+                cuboid(bottomMountDimensions,
+                    rounding = verticalEdgeRounding, except = [TOP, BOT],
+                    anchor = TOP);
+            }
+
+            // Adding the clearance for the wires
+            if (disableWireTrack == false) {
+                position(BACK)
+                fwd(scooch)
+                prismoid(size1 = [wireOutletBaseDimensions.x, servoNegativeDimensions.z],
+                    size2 = [wireOutletTopDimensions.x, servoNegativeDimensions.z],
+                    h = wireOutletThickness,
+                    anchor = BOT, orient = BACK) {
+                    
+                    // Making a bit of extra space for the wires to go through
+                    down(scooch)
+                    align(TOP)
+                    cuboid([wireOutletTopDimensions.x,servoNegativeDimensions.z,
+                        wireClearance]);
+                };
+            };
+        }
     };
 }
 

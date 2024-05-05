@@ -209,7 +209,7 @@ module BuildPotentiometerDimensionsTest() {
 */
 module BuildPotentiometerHoleNegative(anchor = CENTER, spin = 0, orient = UP) {
     BuildPotentiometer(oversizeForNegative = get_slop(),
-        anchor = anchor, spin = spin, orient = orient);
+        anchor = anchor, spin = spin, orient = orient) children();
 }
 
 /*
