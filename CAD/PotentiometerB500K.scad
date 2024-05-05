@@ -219,7 +219,8 @@ module BuildPotentiometerHoleNegative(anchor = CENTER, spin = 0, orient = UP) {
         for making a negative
 */
 module BuildPotentiometer(oversizeForNegative = 0,
-    anchor = CENTER, spin = 0, orient = UP) {
+    anchor = CENTER, spin = 0, orient = UP,
+    $metalColor = "lightGrey", $pcbColor = "peru") {
 
     // Key Values
     oversizeBy = oversizeForNegative ? get_slop() : 0;

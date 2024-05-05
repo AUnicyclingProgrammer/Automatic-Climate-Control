@@ -56,6 +56,10 @@ scooch = 0.010; //0.001 //Just for making sure parts actually go together
 /*[Misc.]*/
 
 // ----- Global Variables -----
+/*
+Variables that can be referenced by anything but that don't matter much. Things like
+cosmetic chamfers or fillets would fall into this category
+*/
 
 // ----- Development -----
 

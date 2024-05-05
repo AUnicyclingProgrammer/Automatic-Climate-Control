@@ -259,6 +259,7 @@ module BuildMicroServoHorn(oversizeForNegative = 0,
             tag_scope()
             diff("servoHornDiff") {
                 // - Mount -
+                color_this("gainsboro")
                 up(mountThickness)
                 zcyl(d = mountDiameter, h = mountThickness,
                     anchor = TOP) {
@@ -273,6 +274,7 @@ module BuildMicroServoHorn(oversizeForNegative = 0,
                 };
 
                 // - Arm -
+                color_this("gainsboro")
                 hull() {
                     zcyl(d = mountDiameter, h = hornThickness,
                         anchor = BOT);
@@ -284,6 +286,7 @@ module BuildMicroServoHorn(oversizeForNegative = 0,
 
                 // - Hole for Screw -
                 if (oversizeForNegative == 0) {
+                    color_this("gainsboro")
                     tag("servoHornDiff")
                     down(scooch)
                     zcyl(d = interfaceOuterDiameter/2, h = mountThickness,
