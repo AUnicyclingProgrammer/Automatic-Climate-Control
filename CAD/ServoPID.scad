@@ -74,10 +74,10 @@ printMountingPlate = true;
 gearThickness = 6;
 
 // Number of teeth the gears will have
-gearToothCount = 18;
+gearToothCount = 16;
 
 // Distance between the centers of the gear teeth, measured in mm
-gearCircularPitch = 5;
+gearCircularPitch = 6;
 
 // Helical angle of the gears
 gearHelicalAngle = 37;
@@ -134,18 +134,25 @@ cosmetic chamfers or fillets would fall into this category
 
 displacementDistance = CalculateGearDistance(backlash = get_slop());
 
+
 if (renderAssembly) {
     right(displacementDistance/2) {
         BuildPotentiometerGear() {
-            position(BOTTOM)
-            BuildPotentiometer(anchor = "knobBottom");
+            tag("keep")
+            position(TOP)
+            BuildPotentiometer(anchor = "knobTop");
         };
     }
 
     left(displacementDistance/2) {
         BuildServoGear() {
+            // Visual Reference
+            tag("keep")
             position(BOTTOM)
-            BuildMicroServoHorn(anchor = "bottomFace");
+            BuildMicroServoHorn(anchor = "bottomFace") {
+                position("interface")
+                BuildMicroServo(anchor="interfaceTop");
+            };
         };
     }
 }

@@ -294,7 +294,6 @@ module _BuildKnob(anchor = CENTER, spin = 0, orient = UP) {
                 anchor = BOT);
 
             // Taper
-            tag("keep")
             up(knobBaseHeight)
             zcyl(d = knobTaperDiameter, h = knobTaperHeight,
                 anchor = BOT);
