@@ -30,5 +30,6 @@ while True:
     for channelAddress in [A0, A1, A2, A3]:
         bus.write_byte(address,channelAddress)
         value = bus.read_byte(address)
-        print(f"Addr: {channelAddress} | Value: {value}")
+        print(f"Addr: {channelAddress} | V: {value} [] ", end="")
+    print("")
     time.sleep(0.5)

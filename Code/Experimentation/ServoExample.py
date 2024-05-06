@@ -39,11 +39,13 @@ if False:
 
 # Trying to figure out what this little servo does.
 if True:
-	for i in range (0,5):
-		for i in range(0,180,1):
-			test.move_servo_position(0,i)
-			print("Current Angle: " + str(i))
-			time.sleep(0.1)
+	for i in range (0,1):
+		# for i in range(0,180*2,1):
+		for i in range(50*2,80*2,1):
+			position = i/2
+			test.move_servo_position(0,position)
+			print("Current Angle: " + str(position))
+			time.sleep(1)
 
 # This command tells the servo to stop spinning			
 test.move_servo_position(0, 180)
