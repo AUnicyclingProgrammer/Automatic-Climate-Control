@@ -64,30 +64,33 @@ if __name__ == "__main__":
 	
 	# - Initializing -
 	# Create the pid controller
-	pid = PID(1, 0.1, 0.05)
+	# pid = PID(1, 0.1, 0.05)
+	# pid = PID(0.75, 0.1, 0.025)
+	# pid = PID(0.75, 0.025, 0.025)
+	
+	# pid = PID(0.5, 0.05, 0.01)
+	pid = PID(0.5, 0.075, 0.0)
+	# pid = PID(0.5, 0.075, 0.015)
+	# pid.proportional_on_measurement = True
 
 	# Setting the sampling time
-	samplingTime = 0.05
+	# samplingTime = 0.01
+	# samplingTime = 0.001
+	samplingTime = 0.01
 	pid.sample_time = samplingTime
 
 	# - Creating Control Range -
-	
-	# The motor will be assigned this many speeds values at which it can turn in each direction
-	numberElementsPerDirection = 21
-	slowestReverseValue = 47
-	slowestForwardValue = 53
-	for i in range(0, numberElementsPerDirection):
-		print(i)
+	# Set the outputs
+	# pid.output_limits = (20, 220) # Just random guesses
+	# pid.output_limits = (25, 65) # Pre-scaled to account for deadzone skipping
+	pid.output_limits = (35, 55) # Pre-scaled to account for deadzone skipping
+	# pid.output_limits = (40, 50) # Pre-scaled to account for deadzone skipping
+	# pid.output_limits = (44, 46) # Pre-scaled to account for deadzone skipping
 
-
-	print(f"Speed Range: {speedRange}")
-
-	# Set the outputs (set arbitrarliy for the time being)
-	# pid.output_limits = (20, 220)
-	pid.output_limits = (40, 60)
-
-	# Setting the setpoint to 120
-	pid.setpoint = 50
+	# Setting the setpoint
+	tolerance = 5
+	setpoint = 200
+	pid.setpoint = setpoint
 
 	while True:
 		# Read the current value of the knob
@@ -97,15 +100,39 @@ if __name__ == "__main__":
 		onOffValue = ReadPotentiometer(1)
 
 		# Get a new reading from the potentiometer
-		newSpeed = pid(potentiometerValue)
+		pidRecommendation = pid(potentiometerValue)
 
-		# Tell the servo to scoot
-		servoHat.move_servo_position(0, newSpeed)
+		# Bypassing the deadspot in the middle
+		if (pidRecommendation > 45):
+			# Skipping the deadspot in the middle
+			newSpeed = pidRecommendation + 8
+		else:
+			newSpeed = pidRecommendation
 
-		print(f"Position: {potentiometerValue} | Speed: {newSpeed} | On Off: {onOffValue}")
+		# Tell the servo to scoot if it's too far away
+		if ((setpoint + tolerance > potentiometerValue) and \
+			 (potentiometerValue > setpoint - tolerance)):
+			# Stop, close enough
+			# time.sleep(samplingTime/2)
+			# time.sleep(samplingTime)
+			servoHat.move_servo_position(0, 180)
+			# time.sleep(samplingTime/2)
+
+			servoStopped = True
+		else:
+			# Keep trying
+			servoHat.move_servo_position(0, newSpeed)
+
+			servoStopped = False
+		# 
+
+		prevP, prevI, prevD = pid.components
+		print(f"Position: {potentiometerValue:3} | Speed: {newSpeed:.2f} |"+\
+			f" On Off: {onOffValue:3} | S: {servoStopped*100:3} |"\
+			+ f"P: {float(prevP):5.5} I: {float(prevI):5.5} D: {float(prevD):5.5}")
 		
 		# So the pi doesn't over-work itself
-		time.sleep(samplingTime)
+		time.sleep(samplingTime/1)
 
 		if (onOffValue > 127):
 			break
