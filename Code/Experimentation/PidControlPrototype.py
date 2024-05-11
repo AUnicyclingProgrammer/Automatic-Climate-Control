@@ -1,9 +1,15 @@
-# Imports
+# ----- Imports -----
+# Utility
+import numpy as np
+
+# For Control
+import time
+
+# For I2C
 import pi_servo_hat
 import smbus
 
-import time
-
+# For control systems
 from simple_pid import PID
 
 """
@@ -52,8 +58,44 @@ def ReadPotentiometer(potentiometerNumber):
 	i2cBus.write_byte(ADC_ADDRESS, channelAddress)
 	value = i2cBus.read_byte(ADC_ADDRESS)
 	return value
-# 
+#
 
+# ----- Utility Classes -----
+
+class MovingAverage:
+	"""
+	Uses a moving average to filter input data
+	"""
+
+	def __init__(self, windowSize = 10):
+		"""
+		Creating a MovingAverage filter instance
+		
+		windowSize : number of items to include in the moving filter
+		"""
+
+		# Instantiate the window
+		self.window = np.zeros(windowSize)
+	#
+
+	def __call__(self, inputValue):
+		"""
+		Increments the filter by one timestep
+
+		inputValue : raw value to be filtered
+		"""
+		
+		# Rotate the window by one place
+		self.window = np.roll(self.window, 1)
+		
+		# Add the new element
+		self.window[0] = inputValue
+
+		# Get the mean and return it
+		return np.mean(self.window)
+	# 
+
+# 
 
 # ----- Begin Program -----
 if __name__ == "__main__":
@@ -69,9 +111,12 @@ if __name__ == "__main__":
 	# pid = PID(0.75, 0.025, 0.025)
 	
 	# pid = PID(0.5, 0.05, 0.01)
-	pid = PID(0.5, 0.075, 0.0)
+	# pid = PID(0.5, 0.075, 0.0)
 	# pid = PID(0.5, 0.075, 0.001)
 	# pid.proportional_on_measurement = True
+
+	# Pid tuning with filtering enabled
+	pid = PID(0.5, 0.075, 0.0)
 
 	# Setting the sampling time
 	# samplingTime = 0.01
@@ -88,16 +133,23 @@ if __name__ == "__main__":
 	pid.output_limits = (44, 46) # Pre-scaled to account for deadzone skipping
 
 	# Setting the setpoint
-	tolerance = 7
-	setpoint = 200
+	tolerance = 0
+	setpoint = 100
 	pid.setpoint = setpoint
 
+	# Creating filters
+	filterSize = 10
+	potentiometerFilter = MovingAverage(filterSize)
+	onOffFilter = MovingAverage(filterSize)
+	
 	while True:
 		# Read the current value of the knob
-		potentiometerValue = ReadPotentiometer(0)
+		rawPotentiometerValue = ReadPotentiometer(0)
+		potentiometerValue = potentiometerFilter(rawPotentiometerValue)
 
 		# Read the current value of the other knob
-		onOffValue = ReadPotentiometer(1)
+		rawOnOffValue = ReadPotentiometer(1)
+		onOffValue = onOffFilter(rawOnOffValue)
 
 		# If we are close enough then falsify the value sent to the PID controller
 		# Tell the servo to scoot if it's too far away
@@ -129,9 +181,12 @@ if __name__ == "__main__":
 
 		
 		prevP, prevI, prevD = pid.components
-		print(f"Position: {potentiometerValue:3} | F:{filteredValue:3} | Speed: {newSpeed:.2f} |"+\
-			f" On Off: {onOffValue:3} | S: {servoStopped*100:3} |"\
+		print(f"Pos: {potentiometerValue:3} | F:{filteredValue:3} | Spd: {newSpeed:.2f} |"+\
+			f" On Off: {onOffValue:4} | S: {servoStopped*100:3} |"\
 			+ f"P: {float(prevP):5.5} I: {float(prevI):5.5} D: {float(prevD):5.5}")
+		# print(f"Position: {potentiometerValue:3} | F:{filteredValue:3} | Speed: {newSpeed:.2f} |"+\
+		# 	f" On Off: {onOffValue:3} | S: {servoStopped*100:3} |"\
+		# 	+ f"P: {float(prevP):5.5} I: {float(prevI):5.5} D: {float(prevD):5.5}")
 		
 		# So the pi doesn't over-work itself
 		time.sleep(samplingTime/1)
