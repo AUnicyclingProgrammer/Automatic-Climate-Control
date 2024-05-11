@@ -70,7 +70,7 @@ if __name__ == "__main__":
 	
 	# pid = PID(0.5, 0.05, 0.01)
 	pid = PID(0.5, 0.075, 0.0)
-	# pid = PID(0.5, 0.075, 0.015)
+	# pid = PID(0.5, 0.075, 0.001)
 	# pid.proportional_on_measurement = True
 
 	# Setting the sampling time
@@ -83,12 +83,12 @@ if __name__ == "__main__":
 	# Set the outputs
 	# pid.output_limits = (20, 220) # Just random guesses
 	# pid.output_limits = (25, 65) # Pre-scaled to account for deadzone skipping
-	pid.output_limits = (35, 55) # Pre-scaled to account for deadzone skipping
+	# pid.output_limits = (35, 55) # Pre-scaled to account for deadzone skipping
 	# pid.output_limits = (40, 50) # Pre-scaled to account for deadzone skipping
-	# pid.output_limits = (44, 46) # Pre-scaled to account for deadzone skipping
+	pid.output_limits = (44, 46) # Pre-scaled to account for deadzone skipping
 
 	# Setting the setpoint
-	tolerance = 5
+	tolerance = 7
 	setpoint = 200
 	pid.setpoint = setpoint
 
@@ -99,8 +99,23 @@ if __name__ == "__main__":
 		# Read the current value of the other knob
 		onOffValue = ReadPotentiometer(1)
 
+		# If we are close enough then falsify the value sent to the PID controller
+		# Tell the servo to scoot if it's too far away
+		if ((setpoint + tolerance > potentiometerValue) and \
+			 (potentiometerValue > setpoint - tolerance)):
+			# Stop, close enough
+			filteredValue = setpoint
+
+			servoStopped = True
+		else:
+			# Keep trying
+			filteredValue = potentiometerValue
+
+			servoStopped = False
+		#
+
 		# Get a new reading from the potentiometer
-		pidRecommendation = pid(potentiometerValue)
+		pidRecommendation = pid(filteredValue)
 
 		# Bypassing the deadspot in the middle
 		if (pidRecommendation > 45):
@@ -109,25 +124,12 @@ if __name__ == "__main__":
 		else:
 			newSpeed = pidRecommendation
 
-		# Tell the servo to scoot if it's too far away
-		if ((setpoint + tolerance > potentiometerValue) and \
-			 (potentiometerValue > setpoint - tolerance)):
-			# Stop, close enough
-			# time.sleep(samplingTime/2)
-			# time.sleep(samplingTime)
-			servoHat.move_servo_position(0, 180)
-			# time.sleep(samplingTime/2)
+		# Move the servo the correct mout
+		servoHat.move_servo_position(0, newSpeed)
 
-			servoStopped = True
-		else:
-			# Keep trying
-			servoHat.move_servo_position(0, newSpeed)
-
-			servoStopped = False
-		# 
-
+		
 		prevP, prevI, prevD = pid.components
-		print(f"Position: {potentiometerValue:3} | Speed: {newSpeed:.2f} |"+\
+		print(f"Position: {potentiometerValue:3} | F:{filteredValue:3} | Speed: {newSpeed:.2f} |"+\
 			f" On Off: {onOffValue:3} | S: {servoStopped*100:3} |"\
 			+ f"P: {float(prevP):5.5} I: {float(prevI):5.5} D: {float(prevD):5.5}")
 		
