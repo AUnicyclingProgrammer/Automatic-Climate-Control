@@ -116,7 +116,8 @@ if __name__ == "__main__":
 	# pid.proportional_on_measurement = True
 
 	# Pid tuning with filtering enabled
-	pid = PID(0.5, 0.075, 0.0)
+	# pid = PID(0.5, 0.075, 0.0) # Original
+	pid = PID(0.075, 0.05, 0.01)
 
 	# Setting the sampling time
 	# samplingTime = 0.01
@@ -129,12 +130,12 @@ if __name__ == "__main__":
 	# pid.output_limits = (20, 220) # Just random guesses
 	# pid.output_limits = (25, 65) # Pre-scaled to account for deadzone skipping
 	# pid.output_limits = (35, 55) # Pre-scaled to account for deadzone skipping
-	# pid.output_limits = (40, 50) # Pre-scaled to account for deadzone skipping
-	pid.output_limits = (44, 46) # Pre-scaled to account for deadzone skipping
+	pid.output_limits = (40, 50) # Pre-scaled to account for deadzone skipping
+	# pid.output_limits = (44, 46) # Pre-scaled to account for deadzone skipping
 
 	# Setting the setpoint
 	tolerance = 0
-	setpoint = 100
+	setpoint = 22
 	pid.setpoint = setpoint
 
 	# Creating filters
@@ -181,9 +182,9 @@ if __name__ == "__main__":
 
 		
 		prevP, prevI, prevD = pid.components
-		print(f"Pos: {potentiometerValue:3} | F:{filteredValue:3} | Spd: {newSpeed:.2f} |"+\
-			f" On Off: {onOffValue:4} | S: {servoStopped*100:3} |"\
-			+ f"P: {float(prevP):5.5} I: {float(prevI):5.5} D: {float(prevD):5.5}")
+		print(f"Pos: {potentiometerValue:5.1f} | F:{filteredValue:5.1f} | Spd: {newSpeed:.2f} |"+\
+			f" On Off: {onOffValue:5.1f} | S: {servoStopped*100:3} |"\
+			+ f"P: {float(prevP):5.1f} I: {float(prevI):5.5f} D: {float(prevD):5.2f}")
 		# print(f"Position: {potentiometerValue:3} | F:{filteredValue:3} | Speed: {newSpeed:.2f} |"+\
 		# 	f" On Off: {onOffValue:3} | S: {servoStopped*100:3} |"\
 		# 	+ f"P: {float(prevP):5.5} I: {float(prevI):5.5} D: {float(prevD):5.5}")
