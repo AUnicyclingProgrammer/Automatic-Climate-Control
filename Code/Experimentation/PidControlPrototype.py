@@ -1,5 +1,6 @@
 # ----- Imports -----
 # Utility
+from collections import deque
 import numpy as np
 
 # For Control
@@ -117,7 +118,7 @@ if __name__ == "__main__":
 
 	# Pid tuning with filtering enabled
 	# pid = PID(0.5, 0.075, 0.0) # Original
-	pid = PID(0.075, 0.05, 0.01)
+	pid = PID(0.15, 0.15, 0.02)
 
 	# Setting the sampling time
 	# samplingTime = 0.01
@@ -126,24 +127,47 @@ if __name__ == "__main__":
 	pid.sample_time = samplingTime
 
 	# - Creating Control Range -
+	# deadzoneSize = 8
+	deadzoneSize = 7
+	# The deadzone starts at 45
+
 	# Set the outputs
 	# pid.output_limits = (20, 220) # Just random guesses
 	# pid.output_limits = (25, 65) # Pre-scaled to account for deadzone skipping
 	# pid.output_limits = (35, 55) # Pre-scaled to account for deadzone skipping
-	pid.output_limits = (40, 50) # Pre-scaled to account for deadzone skipping
+	# pid.output_limits = (40, 50) # Pre-scaled to account for deadzone skipping
 	# pid.output_limits = (44, 46) # Pre-scaled to account for deadzone skipping
+	
+	pid.output_limits = (40, 50 + deadzoneSize)
 
 	# Setting the setpoint
 	tolerance = 0
-	setpoint = 22
-	pid.setpoint = setpoint
+	setpoints = deque([50, 200])
+	# setpoint = 50
+	# setpoint = 200
+	pid.setpoint = 120
 
 	# Creating filters
 	filterSize = 10
 	potentiometerFilter = MovingAverage(filterSize)
 	onOffFilter = MovingAverage(filterSize)
 	
+	secondsBetweenToggle = 5	
+	
+	count = 0
+	resetCountAt = secondsBetweenToggle*(1//samplingTime)
 	while True:
+		# Manage toggling the setpoints
+		setpoint = setpoints[0]
+
+		if (count > resetCountAt):
+			pid.setpoint = setpoints[0]
+			setpoints.rotate(1)
+			count = 0
+		# 
+
+		count += 1
+		
 		# Read the current value of the knob
 		rawPotentiometerValue = ReadPotentiometer(0)
 		potentiometerValue = potentiometerFilter(rawPotentiometerValue)
@@ -173,7 +197,7 @@ if __name__ == "__main__":
 		# Bypassing the deadspot in the middle
 		if (pidRecommendation > 45):
 			# Skipping the deadspot in the middle
-			newSpeed = pidRecommendation + 8
+			newSpeed = pidRecommendation + deadzoneSize
 		else:
 			newSpeed = pidRecommendation
 
