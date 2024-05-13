@@ -95,7 +95,44 @@ class MovingAverage:
 		# Get the mean and return it
 		return np.mean(self.window)
 	# 
+# 
 
+class WeightedMovingAverage:
+	"""
+	Uses a moving average to filter input data
+	"""
+
+	def __init__(self, windowSize = 10):
+		"""
+		Creating a MovingAverage filter instance
+		
+		windowSize : number of items to include in the moving filter
+		"""
+
+		# Instantiate the weights
+		rawWeights = np.linspace(0, 1, num = windowSize)
+		self.weights = rawWeights/sum(rawWeights)
+		
+		# Instantiate the window
+		self.window = np.zeros(windowSize)
+	#
+
+	def __call__(self, inputValue):
+		"""
+		Increments the filter by one timestep
+
+		inputValue : raw value to be filtered
+		"""
+		
+		# Rotate the window by one place
+		self.window = np.roll(self.window, 1)
+		
+		# Add the new element
+		self.window[0] = inputValue
+
+		# Get the mean and return it
+		return np.mean(self.window)
+	# 
 # 
 
 # ----- Begin Program -----
@@ -118,7 +155,18 @@ if __name__ == "__main__":
 
 	# Pid tuning with filtering enabled
 	# pid = PID(0.5, 0.075, 0.0) # Original
-	pid = PID(0.15, 0.15, 0.02)
+	# pid = PID(0.15, 0.15, 0.02)
+	# pid = PID(0.15, 0.35, 0.03)
+	
+	# pid = PID(0.15, 0.075, 0.0175)
+	# pid = PID(0.30, 0, 0)
+	# pid = PID(0.30, 0.205, 0)
+	
+	# Best with size = 7.5, center = 57, mag = 20
+	# pid = PID(0.30, 0.205, 0.04)
+	
+	# Best with size = 7.5, center = 57, mag = 10
+	pid = PID(0.25, 0.205, 0.04)
 
 	# Setting the sampling time
 	# samplingTime = 0.01
@@ -128,8 +176,10 @@ if __name__ == "__main__":
 
 	# - Creating Control Range -
 	# deadzoneSize = 8
-	deadzoneSize = 7
-	# The deadzone starts at 45
+	# deadzoneSize = 6
+	deadzoneSize = 7.5
+	deadzoneCenter = 57
+	speedMagnitude = 10
 
 	# Set the outputs
 	# pid.output_limits = (20, 220) # Just random guesses
@@ -138,21 +188,30 @@ if __name__ == "__main__":
 	# pid.output_limits = (40, 50) # Pre-scaled to account for deadzone skipping
 	# pid.output_limits = (44, 46) # Pre-scaled to account for deadzone skipping
 	
-	pid.output_limits = (40, 50 + deadzoneSize)
+	# pid.output_limits = (40, 50 + deadzoneSize)
+	pid.output_limits = (deadzoneCenter - deadzoneSize/2 - speedMagnitude, \
+					deadzoneCenter - deadzoneSize/2 + speedMagnitude)
+	print(f"Limits: {pid.output_limits}")
 
 	# Setting the setpoint
 	tolerance = 0
 	setpoints = deque([50, 200])
+	# setpoints = deque([50, 200, 25, 225])
 	# setpoint = 50
 	# setpoint = 200
 	pid.setpoint = 120
-
-	# Creating filters
-	filterSize = 10
-	potentiometerFilter = MovingAverage(filterSize)
-	onOffFilter = MovingAverage(filterSize)
 	
-	secondsBetweenToggle = 5	
+	# Creating filters
+	# filterSize = 10
+	filterSize = 10
+	potentiometerFilter = WeightedMovingAverage(filterSize)
+	onOffFilter = MovingAverage(filterSize)
+
+	# Just some record keeping
+	minSpeed = 300
+	maxSpeed = 0
+	
+	secondsBetweenToggle = 5
 	
 	count = 0
 	resetCountAt = secondsBetweenToggle*(1//samplingTime)
@@ -195,7 +254,8 @@ if __name__ == "__main__":
 		pidRecommendation = pid(filteredValue)
 
 		# Bypassing the deadspot in the middle
-		if (pidRecommendation > 45):
+		# if (pidRecommendation > 45):
+		if (pidRecommendation > (deadzoneCenter - 0.5*deadzoneSize)):
 			# Skipping the deadspot in the middle
 			newSpeed = pidRecommendation + deadzoneSize
 		else:
@@ -203,12 +263,16 @@ if __name__ == "__main__":
 
 		# Move the servo the correct mout
 		servoHat.move_servo_position(0, newSpeed)
+		minSpeed = min(newSpeed, minSpeed)
+		maxSpeed = max(newSpeed, maxSpeed)
 
 		
 		prevP, prevI, prevD = pid.components
-		print(f"Pos: {potentiometerValue:5.1f} | F:{filteredValue:5.1f} | Spd: {newSpeed:.2f} |"+\
-			f" On Off: {onOffValue:5.1f} | S: {servoStopped*100:3} |"\
-			+ f"P: {float(prevP):5.1f} I: {float(prevI):5.5f} D: {float(prevD):5.2f}")
+		print(f"Pos: {potentiometerValue:5.1f} | Tgt: {pid.setpoint:5.1f} |" \
+			+ f" Δ: {pid.setpoint - potentiometerValue:6.1f} | " \
+		 	+ f" F:{filteredValue:5.1f} | Spd: {newSpeed:.2f} |" \
+			+ f" On Off: {onOffValue:5.1f} | S: {servoStopped*100:3} |"\
+			+ f" P: {float(prevP):5.1f} I: {float(prevI):5.3f} D: {float(prevD):5.2f}")
 		# print(f"Position: {potentiometerValue:3} | F:{filteredValue:3} | Speed: {newSpeed:.2f} |"+\
 		# 	f" On Off: {onOffValue:3} | S: {servoStopped*100:3} |"\
 		# 	+ f"P: {float(prevP):5.5} I: {float(prevI):5.5} D: {float(prevD):5.5}")
@@ -222,6 +286,9 @@ if __name__ == "__main__":
 
 	# Time to stop
 	servoHat.move_servo_position(0, 180)
+	print(f"Min Speed: {minSpeed} | Max Speed: {maxSpeed} | Avg: {np.mean([minSpeed, maxSpeed])}")
+	print(f"Bounds: {pid.output_limits}")
+	print(f"Lower Bound: {minSpeed} | Upper Bound: {maxSpeed - deadzoneSize}")
 
 
 # This runs the servo to a few known positions
