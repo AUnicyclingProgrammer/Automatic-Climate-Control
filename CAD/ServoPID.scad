@@ -61,9 +61,9 @@ scooch = 0.010; //0.001 //Just for making sure parts actually go together
 // If true renders the assembly, otherwise printing mode is used
 renderAssembly = true;
 
-printServoGear = false;
+printServoGear = true;
 printPotentiometerGear = false;
-printMountingPlate = true;
+printMountingPlate = false;
 
 /*[Mechanism]*/
 
@@ -74,10 +74,13 @@ printMountingPlate = true;
 gearThickness = 6;
 
 // Number of teeth the gears will have
-gearToothCount = 14;
+motorGearToothCount = 16;
+
+// Ratio for the potentiometer gear, x:1
+potentiometerGearMultiplier = 2;
 
 // Distance between the centers of the gear teeth, measured in mm
-gearCircularPitch = 6;
+gearCircularPitch = 5;
 
 // Helical angle of the gears
 gearHelicalAngle = 37;
@@ -130,17 +133,18 @@ mountingPlateChamfer = 2;
 
 // Using gear_dist to make two gears that mesh
 *up(0) {
-    d = gear_dist(circ_pitch=gearCircularPitch, gearToothCount, gearToothCount,
+    d = gear_dist(circ_pitch=gearCircularPitch, motorGearToothCount, motorGearToothCount,
         gearHelicalAngle, backlash=get_slop());
-    spur_gear(gearCircularPitch, gearToothCount, thickness = gearThickness,
+    spur_gear(gearCircularPitch, motorGearToothCount, thickness = gearThickness,
         helical=gearHelicalAngle, gear_spin=-90, slices=round($fn/4),
         herringbone = true);
-    right(d) spur_gear(gearCircularPitch, gearToothCount, thickness = gearThickness,
-        helical=-gearHelicalAngle, gear_spin=-90-180/gearToothCount, slices=round($fn/4),
+    right(d) spur_gear(gearCircularPitch, motorGearToothCount, thickness = gearThickness,
+        helical=-gearHelicalAngle, gear_spin=-90-180/motorGearToothCount, slices=round($fn/4),
         herringbone = true);
 }
 
 // ----- Constructing Assembly -----
+potentiometerGearToothCount = potentiometerGearMultiplier*motorGearToothCount;
 
 displacementDistance = CalculateGearDistance(backlash = get_slop());
 
@@ -227,7 +231,7 @@ module BuildTestingMount(displacement) {
 module BuildPotentiometerGear(anchor = CENTER, spin = 0, orient = UP) {
     tag_scope()
     diff("potGearDiff")
-    spur_gear(gearCircularPitch, gearToothCount, thickness = gearThickness,
+    spur_gear(gearCircularPitch, potentiometerGearToothCount, thickness = gearThickness,
         helical=gearHelicalAngle, gear_spin=-90, slices=round($fn/4),
         herringbone = true,
         anchor=anchor, spin=spin, orient=orient) {
@@ -251,8 +255,8 @@ module BuildPotentiometerGear(anchor = CENTER, spin = 0, orient = UP) {
 module BuildServoGear(anchor = CENTER, spin = 0, orient = UP) {
     tag_scope()
     diff("servoGearDiff")
-    spur_gear(gearCircularPitch, gearToothCount, thickness = gearThickness,
-        helical=-gearHelicalAngle, gear_spin=-90-180/gearToothCount, slices=round($fn/4),
+    spur_gear(gearCircularPitch, motorGearToothCount, thickness = gearThickness,
+        helical=-gearHelicalAngle, gear_spin=-90-180/motorGearToothCount, slices=round($fn/4),
         herringbone = true,
         anchor=anchor, spin=spin, orient=orient) {
         
@@ -276,7 +280,8 @@ module BuildServoGear(anchor = CENTER, spin = 0, orient = UP) {
     backlash : how much backlash to put between the gears
 */
 function CalculateGearDistance(backlash = 0) = 
-    gear_dist(circ_pitch=gearCircularPitch, gearToothCount, gearToothCount,
+    gear_dist(circ_pitch=gearCircularPitch, motorGearToothCount,
+        potentiometerGearToothCount,
         helical=gearHelicalAngle, backlash=backlash);
 // 
 
