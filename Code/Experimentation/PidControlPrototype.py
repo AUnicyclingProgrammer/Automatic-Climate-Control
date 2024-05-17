@@ -155,6 +155,7 @@ if __name__ == "__main__":
 	# Best with size = 7.5, center = 57, mag = 10
 	# pid = PID(0.25, 0.205, 0.04)
 	
+	# 2:1 Settings
 	# Best with size = 7.5, center = 57, mag = 30, time = 0.01
 	# pid = PID(0.6, 0, 0)
 	# pid = PID(0.6, 0.7, 0)
@@ -163,7 +164,8 @@ if __name__ == "__main__":
 	# Best with size = 7.5, center = 57, mag = 30, time = 0.005
 	# pid = PID(1.0, 0, 0)
 	# pid = PID(0.9, 0.8, 0)
-	pid = PID(0.9, 0.8, 0.02)
+	# pid = PID(0.9, 0.8, 0.02)
+	pid = PID(0.9, 0.775, 0.02)
 
 	# Setting the sampling time
 	# samplingTime = 0.01
@@ -179,8 +181,10 @@ if __name__ == "__main__":
 	speedMagnitude = 30
 
 	# Set the outputs
-	pid.output_limits = (deadzoneCenter - deadzoneSize/2 - speedMagnitude, \
-					deadzoneCenter - deadzoneSize/2 + speedMagnitude)
+	deadzoneLowerBound = deadzoneCenter - deadzoneSize/2
+	pidLowerBound = deadzoneLowerBound - speedMagnitude
+	pidUpperBound = deadzoneLowerBound + speedMagnitude
+	pid.output_limits = (pidLowerBound, pidUpperBound)
 	print(f"Limits: {pid.output_limits}")
 
 	# Setting the setpoint
@@ -196,7 +200,7 @@ if __name__ == "__main__":
 	
 	# Settling Filter
 	# Can disable motor if average error is below acceptable limit for this long
-	settlingTime = 0.2
+	settlingTime = 0.25
 	settlingWindowSize = settlingTime//samplingTime
 	settlingFilter = MovingAverage(settlingWindowSize)
 
@@ -235,21 +239,22 @@ if __name__ == "__main__":
 
 		# If we are close enough then falsify the value sent to the PID controller
 		# Tell the servo to scoot if it's too far away
-		if ((setpoint + errorMagnitude > potentiometerValue) and \
-			 (potentiometerValue > setpoint - errorMagnitude)):
-			# Stop, close enough
-			filteredValue = setpoint
+		# if ((setpoint + errorMagnitude > potentiometerValue) and \
+		# 	 (potentiometerValue > setpoint - errorMagnitude)):
+		# 	# Stop, close enough
+		# 	filteredValue = setpoint
 
-			servoStopped = True
-		else:
-			# Keep trying
-			filteredValue = potentiometerValue
+		# 	servoStopped = True
+		# else:
+		# 	# Keep trying
+		# 	filteredValue = potentiometerValue
 
-			servoStopped = False
-		#
+		# 	servoStopped = False
+		# #
 
 		# Calculate new output speed
-		pidRecommendation = pid(filteredValue)
+		# pidRecommendation = pid(filteredValue)
+		pidRecommendation = pid(potentiometerValue)
 
 		# Bypassing the deadspot in the middle
 		if (pidRecommendation > (deadzoneCenter - 0.5*deadzoneSize)):
@@ -280,7 +285,8 @@ if __name__ == "__main__":
 			prevP, prevI, prevD = pid.components
 			print(f"Pos: {potentiometerValue:5.1f} | Tgt: {pid.setpoint:5.1f} |" \
 				+ f" Δ: {errorDelta:6.1f} | Avg Δ: {averageErrorDelta:7.1f}" \
-				+ f" F:{filteredValue:5.1f} | Spd: {newSpeed:.2f} |" \
+				# + f" F:{filteredValue:5.1f} |" \
+				+ f" Spd: {newSpeed:.2f} |" \
 				+ f" On Off: {onOffValue:5.1f} | S: {servoStopped*100:3} |"\
 				+ f" P: {float(prevP):7.1f} I: {float(prevI):5.3f} D: {float(prevD):5.2f}")
 			# 
