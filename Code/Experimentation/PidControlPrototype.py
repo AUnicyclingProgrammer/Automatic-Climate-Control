@@ -76,7 +76,7 @@ class MovingAverage:
 		"""
 
 		# Instantiate the window
-		self.window = np.zeros(windowSize)
+		self.window = np.zeros(int(windowSize))
 	#
 
 	def __call__(self, inputValue):
@@ -109,6 +109,9 @@ class WeightedMovingAverage:
 		windowSize : number of items to include in the moving filter
 		"""
 
+		# Filter input
+		windowSize = int(windowSize)
+		
 		# Instantiate the weights
 		rawWeights = np.linspace(0, 1, num = windowSize)
 		self.weights = rawWeights/sum(rawWeights)
@@ -181,7 +184,7 @@ if __name__ == "__main__":
 	print(f"Limits: {pid.output_limits}")
 
 	# Setting the setpoint
-	tolerance = 0
+	errorMagnitude = 1
 	setpoints = deque([50, 200])
 	# setpoints = deque([50, 200, 25, 225])
 	pid.setpoint = 120
@@ -190,6 +193,12 @@ if __name__ == "__main__":
 	filterSize = 10
 	potentiometerFilter = WeightedMovingAverage(filterSize)
 	onOffFilter = MovingAverage(filterSize)
+	
+	# Settling Filter
+	# Can disable motor if average error is below acceptable limit for this long
+	settlingTime = 0.2
+	settlingWindowSize = settlingTime//samplingTime
+	settlingFilter = MovingAverage(settlingWindowSize)
 
 	# Just some record keeping
 	minSpeed = 300 # Set way above the fastest possible speed
@@ -207,14 +216,14 @@ if __name__ == "__main__":
 		# Manage toggling the setpoints
 		setpoint = setpoints[0]
 
-		# Toggling
+		# Iterating through setpoints
 		if (count > resetCountAt):
 			pid.setpoint = setpoints[0]
 			setpoints.rotate(1)
 			count = 0
+		else:
+			count += 1
 		#
-
-		count += 1
 		
 		# Read the current value of the knob
 		rawPotentiometerValue = ReadPotentiometer(0)
@@ -226,8 +235,8 @@ if __name__ == "__main__":
 
 		# If we are close enough then falsify the value sent to the PID controller
 		# Tell the servo to scoot if it's too far away
-		if ((setpoint + tolerance > potentiometerValue) and \
-			 (potentiometerValue > setpoint - tolerance)):
+		if ((setpoint + errorMagnitude > potentiometerValue) and \
+			 (potentiometerValue > setpoint - errorMagnitude)):
 			# Stop, close enough
 			filteredValue = setpoint
 
@@ -239,19 +248,30 @@ if __name__ == "__main__":
 			servoStopped = False
 		#
 
-		# Get a new reading from the potentiometer
+		# Calculate new output speed
 		pidRecommendation = pid(filteredValue)
 
 		# Bypassing the deadspot in the middle
-		# if (pidRecommendation > 45):
 		if (pidRecommendation > (deadzoneCenter - 0.5*deadzoneSize)):
 			# Skipping the deadspot in the middle
 			newSpeed = pidRecommendation + deadzoneSize
 		else:
 			newSpeed = pidRecommendation
 
-		# Move the servo the correct mout
-		servoHat.move_servo_position(0, newSpeed)
+		# Determine Current Error
+		errorDelta = pid.setpoint - potentiometerValue
+		averageErrorDelta = settlingFilter(errorDelta)
+		
+		# Update Servo Speed
+		if (abs(averageErrorDelta) > errorMagnitude):
+			servoHat.move_servo_position(0, newSpeed)
+			servoStopped = False
+		else:
+			# Position has settled, stop motor
+			servoHat.move_servo_position(0, 180)
+			servoStopped = True
+		
+		# Update recorded stats
 		minSpeed = min(newSpeed, minSpeed)
 		maxSpeed = max(newSpeed, maxSpeed)
 
@@ -259,7 +279,7 @@ if __name__ == "__main__":
 		if (count % updateMod == 0):
 			prevP, prevI, prevD = pid.components
 			print(f"Pos: {potentiometerValue:5.1f} | Tgt: {pid.setpoint:5.1f} |" \
-				+ f" Δ: {pid.setpoint - potentiometerValue:6.1f} | " \
+				+ f" Δ: {errorDelta:6.1f} | Avg Δ: {averageErrorDelta:7.1f}" \
 				+ f" F:{filteredValue:5.1f} | Spd: {newSpeed:.2f} |" \
 				+ f" On Off: {onOffValue:5.1f} | S: {servoStopped*100:3} |"\
 				+ f" P: {float(prevP):7.1f} I: {float(prevI):5.3f} D: {float(prevD):5.2f}")
