@@ -144,34 +144,28 @@ if __name__ == "__main__":
 	
 	# - Initializing -
 	# Create the pid controller
-	# pid = PID(1, 0.1, 0.05)
-	# pid = PID(0.75, 0.1, 0.025)
-	# pid = PID(0.75, 0.025, 0.025)
 	
-	# pid = PID(0.5, 0.05, 0.01)
-	# pid = PID(0.5, 0.075, 0.0)
-	# pid = PID(0.5, 0.075, 0.001)
-	# pid.proportional_on_measurement = True
-
-	# Pid tuning with filtering enabled
-	# pid = PID(0.5, 0.075, 0.0) # Original
-	# pid = PID(0.15, 0.15, 0.02)
-	# pid = PID(0.15, 0.35, 0.03)
-	
-	# pid = PID(0.15, 0.075, 0.0175)
-	# pid = PID(0.30, 0, 0)
-	# pid = PID(0.30, 0.205, 0)
-	
+	# 1:1 settings
 	# Best with size = 7.5, center = 57, mag = 20
 	# pid = PID(0.30, 0.205, 0.04)
 	
 	# Best with size = 7.5, center = 57, mag = 10
-	pid = PID(0.25, 0.205, 0.04)
+	# pid = PID(0.25, 0.205, 0.04)
+	
+	# Best with size = 7.5, center = 57, mag = 30, time = 0.01
+	# pid = PID(0.6, 0, 0)
+	# pid = PID(0.6, 0.7, 0)
+	# pid = PID(0.6, 0.7, 0.08)
+
+	# Best with size = 7.5, center = 57, mag = 30, time = 0.005
+	# pid = PID(1.0, 0, 0)
+	# pid = PID(0.9, 0.8, 0)
+	pid = PID(0.9, 0.8, 0.02)
 
 	# Setting the sampling time
 	# samplingTime = 0.01
 	# samplingTime = 0.001
-	samplingTime = 0.01
+	samplingTime = 0.005
 	pid.sample_time = samplingTime
 
 	# - Creating Control Range -
@@ -179,16 +173,9 @@ if __name__ == "__main__":
 	# deadzoneSize = 6
 	deadzoneSize = 7.5
 	deadzoneCenter = 57
-	speedMagnitude = 10
+	speedMagnitude = 30
 
 	# Set the outputs
-	# pid.output_limits = (20, 220) # Just random guesses
-	# pid.output_limits = (25, 65) # Pre-scaled to account for deadzone skipping
-	# pid.output_limits = (35, 55) # Pre-scaled to account for deadzone skipping
-	# pid.output_limits = (40, 50) # Pre-scaled to account for deadzone skipping
-	# pid.output_limits = (44, 46) # Pre-scaled to account for deadzone skipping
-	
-	# pid.output_limits = (40, 50 + deadzoneSize)
 	pid.output_limits = (deadzoneCenter - deadzoneSize/2 - speedMagnitude, \
 					deadzoneCenter - deadzoneSize/2 + speedMagnitude)
 	print(f"Limits: {pid.output_limits}")
@@ -197,21 +184,22 @@ if __name__ == "__main__":
 	tolerance = 0
 	setpoints = deque([50, 200])
 	# setpoints = deque([50, 200, 25, 225])
-	# setpoint = 50
-	# setpoint = 200
 	pid.setpoint = 120
 	
 	# Creating filters
-	# filterSize = 10
 	filterSize = 10
 	potentiometerFilter = WeightedMovingAverage(filterSize)
 	onOffFilter = MovingAverage(filterSize)
 
 	# Just some record keeping
-	minSpeed = 300
-	maxSpeed = 0
+	minSpeed = 300 # Set way above the fastest possible speed
+	maxSpeed = 0 # Set way below the slowest possible speed
 	
+	# Debugging Settings
 	secondsBetweenToggle = 5
+	secondsBetweenUpdates = 0.05
+
+	updateMod = secondsBetweenUpdates//samplingTime
 	
 	count = 0
 	resetCountAt = secondsBetweenToggle*(1//samplingTime)
@@ -219,11 +207,12 @@ if __name__ == "__main__":
 		# Manage toggling the setpoints
 		setpoint = setpoints[0]
 
+		# Toggling
 		if (count > resetCountAt):
 			pid.setpoint = setpoints[0]
 			setpoints.rotate(1)
 			count = 0
-		# 
+		#
 
 		count += 1
 		
@@ -266,16 +255,16 @@ if __name__ == "__main__":
 		minSpeed = min(newSpeed, minSpeed)
 		maxSpeed = max(newSpeed, maxSpeed)
 
-		
-		prevP, prevI, prevD = pid.components
-		print(f"Pos: {potentiometerValue:5.1f} | Tgt: {pid.setpoint:5.1f} |" \
-			+ f" Δ: {pid.setpoint - potentiometerValue:6.1f} | " \
-		 	+ f" F:{filteredValue:5.1f} | Spd: {newSpeed:.2f} |" \
-			+ f" On Off: {onOffValue:5.1f} | S: {servoStopped*100:3} |"\
-			+ f" P: {float(prevP):5.1f} I: {float(prevI):5.3f} D: {float(prevD):5.2f}")
-		# print(f"Position: {potentiometerValue:3} | F:{filteredValue:3} | Speed: {newSpeed:.2f} |"+\
-		# 	f" On Off: {onOffValue:3} | S: {servoStopped*100:3} |"\
-		# 	+ f"P: {float(prevP):5.5} I: {float(prevI):5.5} D: {float(prevD):5.5}")
+		# No need to update every single cycle
+		if (count % updateMod == 0):
+			prevP, prevI, prevD = pid.components
+			print(f"Pos: {potentiometerValue:5.1f} | Tgt: {pid.setpoint:5.1f} |" \
+				+ f" Δ: {pid.setpoint - potentiometerValue:6.1f} | " \
+				+ f" F:{filteredValue:5.1f} | Spd: {newSpeed:.2f} |" \
+				+ f" On Off: {onOffValue:5.1f} | S: {servoStopped*100:3} |"\
+				+ f" P: {float(prevP):7.1f} I: {float(prevI):5.3f} D: {float(prevD):5.2f}")
+			# 
+		# 
 		
 		# So the pi doesn't over-work itself
 		time.sleep(samplingTime/1)
@@ -289,47 +278,4 @@ if __name__ == "__main__":
 	print(f"Min Speed: {minSpeed} | Max Speed: {maxSpeed} | Avg: {np.mean([minSpeed, maxSpeed])}")
 	print(f"Bounds: {pid.output_limits}")
 	print(f"Lower Bound: {minSpeed} | Upper Bound: {maxSpeed - deadzoneSize}")
-
-
-# This runs the servo to a few known positions
-if (False):
-	# Moves servo position to 0 degrees (1ms), Channel 0
-	servoHat.move_servo_position(0, 0)
-	
-	# Pause 1 sec
-	time.sleep(1)
-	
-	# Moves servo position to 90 degrees (2ms), Channel 0
-	servoHat.move_servo_position(0, 90)
-	
-	# Pause 1 sec
-	time.sleep(1)
-	
-	# Telling the servo to stop 
-	servoHat.move_servo_position(0,180)
-	
-
-# This is a sweep servoHat
-if False:
-	for i in range (0,10): # Run 10 times
-		for i in range(0, 180):
-			servoHat.move_servo_position(0, i)
-			time.sleep(0.01)
-		
-		for i in range(180,0,-1):
-			servoHat.move_servo_position(0, i)
-			time.sleep(0.001)
-			
-
-# Trying to figure out what this little servo does.
-if False:
-	time.sleep(2)
-	for i in range (0,1):
-		# for i in range(0,180,1):
-		for i in range(0,200,1):
-			servoHat.move_servo_position(0,i)
-			print("Current Angle: " + str(i))
-			time.sleep(1)
-
-# This command tells the servo to stop spinning
-servoHat.move_servo_position(0, 180)
+# 
