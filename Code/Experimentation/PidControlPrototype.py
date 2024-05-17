@@ -165,7 +165,7 @@ if __name__ == "__main__":
 	# pid = PID(1.0, 0, 0)
 	# pid = PID(0.9, 0.8, 0)
 	# pid = PID(0.9, 0.8, 0.02)
-	pid = PID(0.9, 0.775, 0.02)
+	pid = PID(0.9, 0.8, 0.02)
 
 	# Setting the sampling time
 	# samplingTime = 0.01
@@ -174,22 +174,29 @@ if __name__ == "__main__":
 	pid.sample_time = samplingTime
 
 	# - Creating Control Range -
-	# deadzoneSize = 8
-	# deadzoneSize = 6
 	deadzoneSize = 7.5
 	deadzoneCenter = 57
 	speedMagnitude = 30
 
-	# Set the outputs
+	# Set the output bounds
 	deadzoneLowerBound = deadzoneCenter - deadzoneSize/2
 	pidLowerBound = deadzoneLowerBound - speedMagnitude
 	pidUpperBound = deadzoneLowerBound + speedMagnitude
 	pid.output_limits = (pidLowerBound, pidUpperBound)
 	print(f"Limits: {pid.output_limits}")
 
+	# Define the outer "padding"
+	minimumPotentiometerValue = 0
+	maximumPotentiometerValue = 255
+	
+	paddingMagnitude = 40
+	paddingSpeedMagnitude = 0.1*speedMagnitude
+
+	# - Tuning System -
 	# Setting the setpoint
-	errorMagnitude = 1
-	setpoints = deque([50, 200])
+	errorMagnitude = 1.5
+	# setpoints = deque([50, 200])
+	setpoints = deque([25, 225])
 	# setpoints = deque([50, 200, 25, 225])
 	pid.setpoint = 120
 	
@@ -200,7 +207,7 @@ if __name__ == "__main__":
 	
 	# Settling Filter
 	# Can disable motor if average error is below acceptable limit for this long
-	settlingTime = 0.25
+	settlingTime = 0.2
 	settlingWindowSize = settlingTime//samplingTime
 	settlingFilter = MovingAverage(settlingWindowSize)
 
@@ -217,6 +224,7 @@ if __name__ == "__main__":
 	count = 0
 	resetCountAt = secondsBetweenToggle*(1//samplingTime)
 	while True:
+		# - Rotate through Setpoints -
 		# Manage toggling the setpoints
 		setpoint = setpoints[0]
 
@@ -229,6 +237,7 @@ if __name__ == "__main__":
 			count += 1
 		#
 		
+		# - Read Potentiometers -
 		# Read the current value of the knob
 		rawPotentiometerValue = ReadPotentiometer(0)
 		potentiometerValue = potentiometerFilter(rawPotentiometerValue)
@@ -237,31 +246,59 @@ if __name__ == "__main__":
 		rawOnOffValue = ReadPotentiometer(1)
 		onOffValue = onOffFilter(rawOnOffValue)
 
-		# If we are close enough then falsify the value sent to the PID controller
-		# Tell the servo to scoot if it's too far away
-		# if ((setpoint + errorMagnitude > potentiometerValue) and \
-		# 	 (potentiometerValue > setpoint - errorMagnitude)):
-		# 	# Stop, close enough
-		# 	filteredValue = setpoint
-
-		# 	servoStopped = True
-		# else:
-		# 	# Keep trying
-		# 	filteredValue = potentiometerValue
-
-		# 	servoStopped = False
-		# #
-
+		# - Calculate New Motor Speed -
 		# Calculate new output speed
-		# pidRecommendation = pid(filteredValue)
 		pidRecommendation = pid(potentiometerValue)
 
 		# Bypassing the deadspot in the middle
 		if (pidRecommendation > (deadzoneCenter - 0.5*deadzoneSize)):
 			# Skipping the deadspot in the middle
-			newSpeed = pidRecommendation + deadzoneSize
+			recommendedSpeed = pidRecommendation + deadzoneSize
 		else:
-			newSpeed = pidRecommendation
+			recommendedSpeed = pidRecommendation
+		#
+
+		# Account for outer padding
+		if (potentiometerValue < minimumPotentiometerValue + paddingMagnitude):
+			# Determine how far the system is from the outer edge
+			percentageOfPaddingRemaining = potentiometerValue / paddingMagnitude
+			percentageUsed = 1 - percentageOfPaddingRemaining
+
+			# Determine amount to reduce speed by
+			speedReduction = (percentageUsed)*(paddingSpeedMagnitude)
+
+			# Determine the fastest allowable speed
+			speedLimit = pidLowerBound + speedReduction
+
+			# Adjust speed accordingly
+			newSpeed = max(speedLimit, recommendedSpeed)
+
+		elif (potentiometerValue > maximumPotentiometerValue - paddingMagnitude):
+			# Determine how far the system is from the outer edge
+			percentageOfPaddingRemaining = (maximumPotentiometerValue \
+								   			- potentiometerValue) / paddingMagnitude
+			percentageUsed = 1 - percentageOfPaddingRemaining
+			
+			# Determine amount to reduce speed by
+			speedReduction = (percentageUsed)*paddingSpeedMagnitude
+
+			# Determine the fastest allowable speed
+			speedLimit = pidUpperBound - speedReduction
+
+			# Adjust speed accordingly
+			newSpeed = min(speedLimit, recommendedSpeed)
+		else:
+			percentageOfPaddingRemaining = 1
+			speedReduction = 0
+			
+			if (recommendedSpeed < deadzoneCenter):
+				speedLimit = pidLowerBound
+			else:
+				speedLimit = pidUpperBound
+			#
+
+			newSpeed = recommendedSpeed
+		# 
 
 		# Determine Current Error
 		errorDelta = pid.setpoint - potentiometerValue
@@ -276,6 +313,8 @@ if __name__ == "__main__":
 			servoHat.move_servo_position(0, 180)
 			servoStopped = True
 		
+		# - Stats and Record Keeping - 
+
 		# Update recorded stats
 		minSpeed = min(newSpeed, minSpeed)
 		maxSpeed = max(newSpeed, maxSpeed)
@@ -284,16 +323,21 @@ if __name__ == "__main__":
 		if (count % updateMod == 0):
 			prevP, prevI, prevD = pid.components
 			print(f"Pos: {potentiometerValue:5.1f} | Tgt: {pid.setpoint:5.1f} |" \
-				+ f" Δ: {errorDelta:6.1f} | Avg Δ: {averageErrorDelta:7.1f}" \
-				# + f" F:{filteredValue:5.1f} |" \
-				+ f" Spd: {newSpeed:.2f} |" \
-				+ f" On Off: {onOffValue:5.1f} | S: {servoStopped*100:3} |"\
+				+ f" Δ: {errorDelta:6.1f} | Avg Δ: {averageErrorDelta:7.1f} |" \
+				+ f" R Spd: {recommendedSpeed:.2f} |" \
+				+ f" %:{percentageOfPaddingRemaining:4.2f} |" \
+				+ f" Red:{speedReduction:4.1f} |" \
+				+ f" L:{speedLimit:5.2f} |" \
+				+ f" Spd:{newSpeed:5.2f} |" \
+				# + f" On Off:{onOffValue:5.1f} |"\
+				+ f" S:{servoStopped*100:3} |"\
 				+ f" P: {float(prevP):7.1f} I: {float(prevI):5.3f} D: {float(prevD):5.2f}")
 			# 
 		# 
 		
+		# - Delay -
 		# So the pi doesn't over-work itself
-		time.sleep(samplingTime/1)
+		time.sleep(samplingTime)
 
 		if (onOffValue > 127):
 			break
