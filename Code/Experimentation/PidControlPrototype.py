@@ -1,6 +1,7 @@
 # ----- Imports -----
 # Utility
 from collections import deque
+import random
 import numpy as np
 
 # For Control
@@ -164,7 +165,8 @@ if __name__ == "__main__":
 	# pid = PID(0.4, 0, 0)
 	# pid = PID(0.4, 0.3, 0)
 	# pid = PID(0.4, 0.3, 0.075)
-	pid = PID(0.4, 0.3, 0.05)
+	# pid = PID(0.4, 0.3, 0.05)
+	pid = PID(0.4, 0.33, 0.05)
 
 	# Setting the sampling time
 	samplingTime = 0.005
@@ -243,7 +245,7 @@ if __name__ == "__main__":
 	deadzoneUpperBound = minSpeed
 	
 	# Debugging Settings
-	secondsBetweenToggle = 5
+	secondsBetweenToggle = 3
 	secondsBetweenUpdates = 0.05
 	# secondsBetweenToggle = 0.1
 	# secondsBetweenUpdates = samplingTime
@@ -254,13 +256,12 @@ if __name__ == "__main__":
 	resetCountAt = secondsBetweenToggle*(1//samplingTime)
 	while True:
 		# --- Rotate through Setpoints ---
-		# Manage toggling the setpoints
-		setpoint = setpoints[0]
-
 		# Iterating through setpoints
 		if (count > resetCountAt):
-			pid.setpoint = setpoints[0]
-			setpoints.rotate(-1)
+			pid.setpoint = random.randint(5, 250)
+			
+			# pid.setpoint = setpoints[0]
+			# setpoints.rotate(-1)
 			count = 0
 		else:
 			count += 1
