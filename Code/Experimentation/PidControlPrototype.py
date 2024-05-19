@@ -147,14 +147,7 @@ if __name__ == "__main__":
 	
 	# - Initializing -
 	# Create the pid controller
-	
-	# 1:1 settings
-	# Best with size = 7.5, center = 57, mag = 20
-	# pid = PID(0.30, 0.205, 0.04)
-	
-	# Best with size = 7.5, center = 57, mag = 10
-	# pid = PID(0.25, 0.205, 0.04)
-	
+		
 	# 2:1 Settings
 	# Best with size = 7.5, center = 57, mag = 30, time = 0.01
 	# pid = PID(0.6, 0, 0)
@@ -170,11 +163,10 @@ if __name__ == "__main__":
 	# Best with size = 4, center = 49, mag = 30, time = 0.005, filter = 15, avg
 	# pid = PID(0.4, 0, 0)
 	# pid = PID(0.4, 0.3, 0)
-	pid = PID(0.4, 0.3, 0.075)
+	# pid = PID(0.4, 0.3, 0.075)
+	pid = PID(0.4, 0.3, 0.05)
 
 	# Setting the sampling time
-	# samplingTime = 0.01
-	# samplingTime = 0.001
 	samplingTime = 0.005
 	pid.sample_time = samplingTime
 
@@ -208,8 +200,9 @@ if __name__ == "__main__":
 
 	# --- Tuning System ---
 	# Setting the setpoint
-	errorMagnitude = 0
-	# errorMagnitude = 1.5
+	errorMagnitude = 1
+	settledErrorMagnitude = 5
+	currentErrorMagnitude = errorMagnitude
 	# setpoints = deque([50, 200])
 	# setpoints = deque([50, 200, 100, 150])
 	# setpoints = deque([25, 225])
@@ -220,21 +213,26 @@ if __name__ == "__main__":
 	# setpoints = deque([15, 240, 10, 245, 8, 247, 5, 250])
 	# setpoints = deque([10, 8, 5])
 	# setpoints = deque([5, 250])
-	setpoints = deque([5, 250, 127])
+	# setpoints = deque([5, 250, 127])
+	setpoints = deque([50, 205, 30, 225, 100, 155, 10, 245])
+	# setpoints = deque([125, 127, 130])
+
 	pid.setpoint = 120
+	lastSetpoint = pid.setpoint
 	
 	# Creating filters
-	# filterSize = 10
 	filterSize = 15
-	# potentiometerFilter = WeightedMovingAverage(filterSize)
 	potentiometerFilter = MovingAverage(filterSize)
 	onOffFilter = MovingAverage(filterSize)
 	
 	# Settling Filter
 	# Can disable motor if average error is below acceptable limit for this long
-	settlingTime = 0.2
+	settlingTime = 0.25
 	settlingWindowSize = settlingTime//samplingTime
 	settlingFilter = MovingAverage(settlingWindowSize)
+
+	# Amount of additional margin to add to the error magnitude if the system has settled
+	# additionalErrorMagnitudeIfSettled = 0.5
 
 	# Just some record keeping
 	minSpeed = 300 # Set way above the fastest possible speed
@@ -247,6 +245,8 @@ if __name__ == "__main__":
 	# Debugging Settings
 	secondsBetweenToggle = 5
 	secondsBetweenUpdates = 0.05
+	# secondsBetweenToggle = 0.1
+	# secondsBetweenUpdates = samplingTime
 
 	updateMod = secondsBetweenUpdates//samplingTime
 	
@@ -287,7 +287,7 @@ if __name__ == "__main__":
 			recommendedSpeed = pidRecommendation
 		#
 
-		# Account for outer padding
+		# - Account for outer padding -
 		if (potentiometerValue < minimumPotentiometerValue + paddingInnerThreshold):
 			# Determine the percentage of padding used
 			if (potentiometerValue < minimumPotentiometerValue + paddingOuterThreshold):
@@ -297,7 +297,7 @@ if __name__ == "__main__":
 				# In padding zone, determine amount of padding region left
 				percentageOfPaddingRemaining = (potentiometerValue - paddingOuterThreshold) \
 										/ (paddingInnerThreshold - paddingOuterThreshold)
-			# 
+			#
 
 			# Determine amount to reduce speed by
 			percentageUsed = 1 - percentageOfPaddingRemaining
@@ -307,12 +307,10 @@ if __name__ == "__main__":
 			speedLimit = pidLowerBound + speedReduction
 
 			# Adjust speed accordingly
-			# newSpeed = max(speedLimit, recommendedSpeed)
 			newSpeed = recommendedSpeed
 
 			# Update PID integral bounds
 			pid.output_limits = (pidLowerBound + speedReduction, pidUpperBound)
-
 		elif (potentiometerValue > maximumPotentiometerValue - paddingInnerThreshold):
 			# Determine the percentage of padding used
 			if (potentiometerValue > maximumPotentiometerValue - paddingOuterThreshold):
@@ -321,23 +319,12 @@ if __name__ == "__main__":
 			else:
 				# In padding zone, determine amount of padding region left
 
-				# num = (maximumPotentiometerValue - potentiometerValue - paddingOuterThreshold)
-				# denom = (paddingInnerThreshold - paddingOuterThreshold)
-				
-				# percentageOfPaddingRemaining = (maximumPotentiometerValue
-				# 	- potentiometerValue - paddingOuterThreshold) \
-				# 	/ (maximumPotentiometerValue - paddingInnerThreshold - paddingOuterThreshold)
-				
-				# percentageOfPaddingRemaining = num / denom
-
 				percentageOfPaddingRemaining = (maximumPotentiometerValue - potentiometerValue \
 						- paddingOuterThreshold) / (paddingInnerThreshold - paddingOuterThreshold)
 
 			# 
 			
 			# Determine how far the system is from the outer edge
-			# percentageOfPaddingRemaining = (maximumPotentiometerValue \
-			# 					   			- potentiometerValue) / paddingInnerThreshold
 			percentageUsed = 1 - percentageOfPaddingRemaining
 			
 			# Determine amount to reduce speed by
@@ -347,12 +334,10 @@ if __name__ == "__main__":
 			speedLimit = pidUpperBound - speedReduction
 
 			# Adjust speed accordingly
-			# newSpeed = min(speedLimit, recommendedSpeed)
 			newSpeed = recommendedSpeed
 
 			# Update PID integral bounds
 			pid.output_limits = (pidLowerBound, pidUpperBound - speedReduction)
-			
 		else:
 			percentageOfPaddingRemaining = 1
 			speedReduction = 0
@@ -369,18 +354,37 @@ if __name__ == "__main__":
 			pid.output_limits = (pidLowerBound, pidUpperBound)
 		# 
 
-		# Determine Current Error
-		errorDelta = pid.setpoint - potentiometerValue
-		averageErrorDelta = settlingFilter(errorDelta)
+		# - Has Settled? -
+		# Udate Error Magnitude
+		if (pid.setpoint != lastSetpoint):
+			currentErrorMagnitude = errorMagnitude
+		#
 		
-		# Update Servo Speed
-		if (abs(averageErrorDelta) > errorMagnitude):
+		# Process Error
+		errorDelta = pid.setpoint - potentiometerValue
+		isWithinTolerance = (abs(errorDelta) < currentErrorMagnitude)
+		hasSettled = settlingFilter(isWithinTolerance)
+		
+		# - Update Servo Speed -
+		if ((hasSettled < int(True))):
 			servoHat.move_servo_position(0, newSpeed)
 			servoStopped = False
 		else:
-			# Position has settled, stop motor
 			servoHat.move_servo_position(0, 180)
 			servoStopped = True
+			
+			# Relax error bounds
+			currentErrorMagnitude = settledErrorMagnitude
+		# 
+
+		# if (abs(hasSettled) > errorMagnitude):
+		# 	servoHat.move_servo_position(0, newSpeed)
+		# 	servoStopped = False
+		# else:
+		# 	# Position has settled, stop motor
+		# 	servoHat.move_servo_position(0, 180)
+		# 	servoStopped = True
+		# 
 		
 		# --- Stats and Record Keeping - --
 
@@ -399,12 +403,14 @@ if __name__ == "__main__":
 		# No need to update every single cycle
 		if (count % updateMod == 0):
 			prevP, prevI, prevD = pid.components
-			print(f"Pos: {potentiometerValue:5.1f} | Tgt: {pid.setpoint:5.1f} |" \
-				+ f" Δ: {errorDelta:6.1f} | Avg Δ: {averageErrorDelta:7.1f} |" \
+			print(f"Pos: {potentiometerValue:5.1f} | Tgt: {pid.setpoint:3} |" \
+				+ f" L Tgt: {lastSetpoint:3} |" \
+				+ f" Err: {currentErrorMagnitude:2} |" \
+				+ f" Δ: {errorDelta:6.1f} | Set?: {hasSettled:6.4f} |" \
 				# + f" R Spd: {recommendedSpeed:.2f} |" \
 				+ f" %:{percentageOfPaddingRemaining:4.2f} |" \
 				+ f" Red:{speedReduction:4.1f} |" \
-				+ f" L:{speedLimit:5.2f} |" \
+				# + f" L:{speedLimit:5.2f} |" \
 				+ f" Spd:{newSpeed:5.2f} |" \
 				# + f" On Off:{onOffValue:5.1f} |"\
 				+ f" S:{servoStopped*100:3} |"\
@@ -418,6 +424,10 @@ if __name__ == "__main__":
 
 		if (onOffValue > 127):
 			break
+
+		# --- Record for Next Iteration ---
+		# Track Setpoints
+		lastSetpoint = pid.setpoint
 	# 
 
 	# Time to stop
