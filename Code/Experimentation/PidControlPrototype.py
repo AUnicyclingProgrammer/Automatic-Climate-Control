@@ -165,7 +165,12 @@ if __name__ == "__main__":
 	# pid = PID(1.0, 0, 0)
 	# pid = PID(0.9, 0.8, 0)
 	# pid = PID(0.9, 0.8, 0.02)
-	pid = PID(0.9, 0.8, 0.02)
+	# pid = PID(0.9, 0.8, 0.02)
+
+	# Best with size = 4, center = 49, mag = 30, time = 0.005, filter = 15, avg
+	# pid = PID(0.4, 0, 0)
+	# pid = PID(0.4, 0.3, 0)
+	pid = PID(0.4, 0.3, 0.075)
 
 	# Setting the sampling time
 	# samplingTime = 0.01
@@ -173,9 +178,9 @@ if __name__ == "__main__":
 	samplingTime = 0.005
 	pid.sample_time = samplingTime
 
-	# - Creating Control Range -
-	deadzoneSize = 7.5
-	deadzoneCenter = 57
+	# --- Creating Control Range ---
+	deadzoneSize = 4
+	deadzoneCenter = 49
 	speedMagnitude = 30
 
 	# Set the output bounds
@@ -183,26 +188,46 @@ if __name__ == "__main__":
 	pidLowerBound = deadzoneLowerBound - speedMagnitude
 	pidUpperBound = deadzoneLowerBound + speedMagnitude
 	pid.output_limits = (pidLowerBound, pidUpperBound)
-	print(f"Limits: {pid.output_limits}")
+	print(f"PID Limits: {pid.output_limits}")
 
 	# Define the outer "padding"
 	minimumPotentiometerValue = 0
 	maximumPotentiometerValue = 255
 	
-	paddingMagnitude = 40
-	paddingSpeedMagnitude = 0.1*speedMagnitude
+	paddingOuterThreshold = 20
+	paddingInnerThreshold = 40
+	paddingSpeedMagnitude = 3
 
-	# - Tuning System -
+	# - Calculating Padding Constants -
+	paddingLowerBound = deadzoneLowerBound - paddingSpeedMagnitude
+	paddingUpperBound = deadzoneLowerBound + paddingSpeedMagnitude
+	print(f"Padded Limits: {(paddingLowerBound, paddingUpperBound)}")
+
+	speedBlendingRange = (paddingLowerBound - pidLowerBound)
+	print(f"Difference Between Bounds: {speedBlendingRange}")
+
+	# --- Tuning System ---
 	# Setting the setpoint
-	errorMagnitude = 1.5
+	errorMagnitude = 0
+	# errorMagnitude = 1.5
 	# setpoints = deque([50, 200])
-	setpoints = deque([25, 225])
+	# setpoints = deque([50, 200, 100, 150])
+	# setpoints = deque([25, 225])
 	# setpoints = deque([50, 200, 25, 225])
+	# setpoints = deque([50, 200, 40, 210, 30, 220, 25, 225, 20, 230])
+	# setpoints = deque([30, 225, 25, 230, 20, 235, 15, 240, 10, 245])
+	# setpoints = deque([15, 240, 10, 245])
+	# setpoints = deque([15, 240, 10, 245, 8, 247, 5, 250])
+	# setpoints = deque([10, 8, 5])
+	# setpoints = deque([5, 250])
+	setpoints = deque([5, 250, 127])
 	pid.setpoint = 120
 	
 	# Creating filters
-	filterSize = 10
-	potentiometerFilter = WeightedMovingAverage(filterSize)
+	# filterSize = 10
+	filterSize = 15
+	# potentiometerFilter = WeightedMovingAverage(filterSize)
+	potentiometerFilter = MovingAverage(filterSize)
 	onOffFilter = MovingAverage(filterSize)
 	
 	# Settling Filter
@@ -214,6 +239,10 @@ if __name__ == "__main__":
 	# Just some record keeping
 	minSpeed = 300 # Set way above the fastest possible speed
 	maxSpeed = 0 # Set way below the slowest possible speed
+
+	# Set using the same strategy as the other bounds were set
+	deadzoneLowerBound = maxSpeed
+	deadzoneUpperBound = minSpeed
 	
 	# Debugging Settings
 	secondsBetweenToggle = 5
@@ -224,20 +253,20 @@ if __name__ == "__main__":
 	count = 0
 	resetCountAt = secondsBetweenToggle*(1//samplingTime)
 	while True:
-		# - Rotate through Setpoints -
+		# --- Rotate through Setpoints ---
 		# Manage toggling the setpoints
 		setpoint = setpoints[0]
 
 		# Iterating through setpoints
 		if (count > resetCountAt):
 			pid.setpoint = setpoints[0]
-			setpoints.rotate(1)
+			setpoints.rotate(-1)
 			count = 0
 		else:
 			count += 1
 		#
 		
-		# - Read Potentiometers -
+		# --- Read Potentiometers ---
 		# Read the current value of the knob
 		rawPotentiometerValue = ReadPotentiometer(0)
 		potentiometerValue = potentiometerFilter(rawPotentiometerValue)
@@ -246,7 +275,7 @@ if __name__ == "__main__":
 		rawOnOffValue = ReadPotentiometer(1)
 		onOffValue = onOffFilter(rawOnOffValue)
 
-		# - Calculate New Motor Speed -
+		# --- Calculate New Motor Speed ---
 		# Calculate new output speed
 		pidRecommendation = pid(potentiometerValue)
 
@@ -259,34 +288,71 @@ if __name__ == "__main__":
 		#
 
 		# Account for outer padding
-		if (potentiometerValue < minimumPotentiometerValue + paddingMagnitude):
-			# Determine how far the system is from the outer edge
-			percentageOfPaddingRemaining = potentiometerValue / paddingMagnitude
-			percentageUsed = 1 - percentageOfPaddingRemaining
+		if (potentiometerValue < minimumPotentiometerValue + paddingInnerThreshold):
+			# Determine the percentage of padding used
+			if (potentiometerValue < minimumPotentiometerValue + paddingOuterThreshold):
+				# To close to edge, no padding left
+				percentageOfPaddingRemaining = 0
+			else:
+				# In padding zone, determine amount of padding region left
+				percentageOfPaddingRemaining = (potentiometerValue - paddingOuterThreshold) \
+										/ (paddingInnerThreshold - paddingOuterThreshold)
+			# 
 
 			# Determine amount to reduce speed by
-			speedReduction = (percentageUsed)*(paddingSpeedMagnitude)
+			percentageUsed = 1 - percentageOfPaddingRemaining
+			speedReduction = (percentageUsed)*(speedBlendingRange)
 
 			# Determine the fastest allowable speed
 			speedLimit = pidLowerBound + speedReduction
 
 			# Adjust speed accordingly
-			newSpeed = max(speedLimit, recommendedSpeed)
+			# newSpeed = max(speedLimit, recommendedSpeed)
+			newSpeed = recommendedSpeed
 
-		elif (potentiometerValue > maximumPotentiometerValue - paddingMagnitude):
+			# Update PID integral bounds
+			pid.output_limits = (pidLowerBound + speedReduction, pidUpperBound)
+
+		elif (potentiometerValue > maximumPotentiometerValue - paddingInnerThreshold):
+			# Determine the percentage of padding used
+			if (potentiometerValue > maximumPotentiometerValue - paddingOuterThreshold):
+				# To close to edge, no padding left
+				percentageOfPaddingRemaining = 0
+			else:
+				# In padding zone, determine amount of padding region left
+
+				# num = (maximumPotentiometerValue - potentiometerValue - paddingOuterThreshold)
+				# denom = (paddingInnerThreshold - paddingOuterThreshold)
+				
+				# percentageOfPaddingRemaining = (maximumPotentiometerValue
+				# 	- potentiometerValue - paddingOuterThreshold) \
+				# 	/ (maximumPotentiometerValue - paddingInnerThreshold - paddingOuterThreshold)
+				
+				# percentageOfPaddingRemaining = num / denom
+
+				percentageOfPaddingRemaining = (maximumPotentiometerValue - potentiometerValue \
+						- paddingOuterThreshold) / (paddingInnerThreshold - paddingOuterThreshold)
+
+			# 
+			
 			# Determine how far the system is from the outer edge
-			percentageOfPaddingRemaining = (maximumPotentiometerValue \
-								   			- potentiometerValue) / paddingMagnitude
+			# percentageOfPaddingRemaining = (maximumPotentiometerValue \
+			# 					   			- potentiometerValue) / paddingInnerThreshold
 			percentageUsed = 1 - percentageOfPaddingRemaining
 			
 			# Determine amount to reduce speed by
-			speedReduction = (percentageUsed)*paddingSpeedMagnitude
+			speedReduction = (percentageUsed)*(speedBlendingRange)
 
 			# Determine the fastest allowable speed
 			speedLimit = pidUpperBound - speedReduction
 
 			# Adjust speed accordingly
-			newSpeed = min(speedLimit, recommendedSpeed)
+			# newSpeed = min(speedLimit, recommendedSpeed)
+			newSpeed = recommendedSpeed
+
+			# Update PID integral bounds
+			pid.output_limits = (pidLowerBound, pidUpperBound - speedReduction)
+			
 		else:
 			percentageOfPaddingRemaining = 1
 			speedReduction = 0
@@ -298,6 +364,9 @@ if __name__ == "__main__":
 			#
 
 			newSpeed = recommendedSpeed
+
+			# Reset the bounds to normal
+			pid.output_limits = (pidLowerBound, pidUpperBound)
 		# 
 
 		# Determine Current Error
@@ -313,18 +382,26 @@ if __name__ == "__main__":
 			servoHat.move_servo_position(0, 180)
 			servoStopped = True
 		
-		# - Stats and Record Keeping - 
+		# --- Stats and Record Keeping - --
 
-		# Update recorded stats
+		# - Update recorded stats -
+		# Overall Speed Values
 		minSpeed = min(newSpeed, minSpeed)
 		maxSpeed = max(newSpeed, maxSpeed)
+
+		# Speeds closest to deadzone
+		if (newSpeed < deadzoneCenter):
+			deadzoneLowerBound = max(newSpeed, deadzoneLowerBound)
+		else:
+			deadzoneUpperBound = min(newSpeed, deadzoneUpperBound)
+		# 
 
 		# No need to update every single cycle
 		if (count % updateMod == 0):
 			prevP, prevI, prevD = pid.components
 			print(f"Pos: {potentiometerValue:5.1f} | Tgt: {pid.setpoint:5.1f} |" \
 				+ f" Δ: {errorDelta:6.1f} | Avg Δ: {averageErrorDelta:7.1f} |" \
-				+ f" R Spd: {recommendedSpeed:.2f} |" \
+				# + f" R Spd: {recommendedSpeed:.2f} |" \
 				+ f" %:{percentageOfPaddingRemaining:4.2f} |" \
 				+ f" Red:{speedReduction:4.1f} |" \
 				+ f" L:{speedLimit:5.2f} |" \
@@ -335,7 +412,7 @@ if __name__ == "__main__":
 			# 
 		# 
 		
-		# - Delay -
+		# --- Delay ---
 		# So the pi doesn't over-work itself
 		time.sleep(samplingTime)
 
@@ -345,7 +422,15 @@ if __name__ == "__main__":
 
 	# Time to stop
 	servoHat.move_servo_position(0, 180)
+	
+	print("")
 	print(f"Min Speed: {minSpeed} | Max Speed: {maxSpeed} | Avg: {np.mean([minSpeed, maxSpeed])}")
-	print(f"Bounds: {pid.output_limits}")
-	print(f"Lower Bound: {minSpeed} | Upper Bound: {maxSpeed - deadzoneSize}")
+	print(f"Magnitude: {speedMagnitude}")
+	print(f"PID Bounds: {(pidLowerBound, pidUpperBound)} | Center: {np.mean([pidLowerBound, pidUpperBound])}")
+	print(f"PID Min Output: {minSpeed} | PID Max Output: {maxSpeed - deadzoneSize} | Max Commanded: {maxSpeed}")
+	print("")
+	print(f"Current Bounds: {pid.output_limits}")
+	print(f"Deadzone Lower Bound: {deadzoneLowerBound} | Deadzone Upper Bound: {deadzoneUpperBound}")
+	print(f"Padded Limits: {(paddingLowerBound, paddingUpperBound)} | Magnitude: {paddingSpeedMagnitude}")
+	print(f"Difference Between Bounds: {speedBlendingRange}")
 # 
