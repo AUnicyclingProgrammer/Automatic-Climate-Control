@@ -9,5 +9,6 @@ test.restart()
 
 time.sleep(0.1)
 
-# Stop the servo
-test.move_servo_position(0,180)
+# Stop every servo
+for i in range(0, 15+1):
+    test.move_servo_position(i,180)

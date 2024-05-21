@@ -245,7 +245,7 @@ if __name__ == "__main__":
 	deadzoneUpperBound = minSpeed
 	
 	# Debugging Settings
-	secondsBetweenToggle = 3
+	secondsBetweenToggle = 5
 	secondsBetweenUpdates = 0.05
 	# secondsBetweenToggle = 0.1
 	# secondsBetweenUpdates = samplingTime
