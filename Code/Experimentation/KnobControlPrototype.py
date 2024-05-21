@@ -141,9 +141,9 @@ class KnobController:
 	
 	def __init__(self, knobNumber,
 			  minimumPotentiometerValue = 0, maximumPotentiometerValue = 255,
-			  speedMagnitude = 30, boundarySpeedMagnitude = 3,
+			  speedMagnitude = 30, boundarySpeedMagnitude = 4,
 			  boundaryOuterThreshold = 20, boundaryInnerThreshold = 40,
-			  errorMagnitude = 1, settledErrorMagnitude = 5, settlingTime = 0.25):
+			  errorMagnitude = 1.1, settledErrorMagnitude = 5, settlingTime = 0.25):
 		"""
 		Creates an instance of the class
 
@@ -385,7 +385,13 @@ class KnobController:
 		"""
 		Move knob to next location
 		"""
+		# --- Updating Controller Settings ---
 		self.pid.setpoint = setpoint
+
+		# Udate currentErrorMagnitude if the setpoint has changed
+		if (self.pid.setpoint != self.lastSetpoint):
+			self.currentErrorMagnitude = self.errorMagnitude
+		#
 		
 		# --- Update Settling State ---
 		potentiometerValue = self.ReadPotentiometerValue(self.knobNumber)
@@ -478,7 +484,7 @@ class KnobController:
 				prevP, prevI, prevD = self.pid.components
 				print(f"Pos: {potentiometerValue:5.1f} | Tgt: {self.pid.setpoint:3} |" \
 					# + f" L Tgt: {self.lastSetpoint:3} |" \
-					+ f" Err: {self.currentErrorMagnitude:2} |" \
+					+ f" Err: {self.currentErrorMagnitude:4.2f} |" \
 					+ f" Δ: {self.errorDelta:6.1f} | Set?: {hasSettled:6.4f} |" \
 					+ f" Lim: ({self.pid.output_limits[0]:5.2f}, {self.pid.output_limits[1]:5.2f}) |" \
 					# + f" R Spd: {recommendedSpeed:.2f} |" \
@@ -523,18 +529,21 @@ class KnobController:
 
 # ----- Begin Program -----
 if __name__ == "__main__":
-	knob = KnobController(0)
-	knob(127)
+	knob0 = KnobController(0)
+	knob1 = KnobController(1)
+	knob0(127)
+	knob1(127)
 	time.sleep(2)
 
 	while True:
 		randomSetpoint = random.randint(0 + 5, 255 - 5)
-		print(f"# Go To: {randomSetpoint} | on? {knob.onOffValue}")
+		print(f"# Go To: {randomSetpoint}")
 		
-		knob(randomSetpoint)
+		knob0(randomSetpoint)
+		knob1(randomSetpoint)
 
-		if (knob.onOffValue > 127):
+		if (ReadPotentiometer(2) > 127):
 			break
-		time.sleep(10)
+		time.sleep(5)
 	# 
 # 
