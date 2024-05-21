@@ -1,8 +1,9 @@
 # ----- Imports -----
 # Utility
 from collections import deque
-import random
+import math
 import numpy as np
+import random
 
 # For Control
 import time
@@ -13,22 +14,6 @@ import smbus
 
 # For control systems
 from simple_pid import PID
-
-"""
-	Right now my goal is get to the point where I can make the servo turn to a certain
-	position, which I will know from the potentiometer feedback.
-
-	Control Loop:
-	* Read Current Position
-	* Update Motor
-
-	Things I need to be able to do:
-	* query the potentiometer for it's position
-	* pass the position to the PID loop
-	* get a response from the PID loop
-	* Convert the response into a servo speed
-	* command the servo motor to go the correct speed
-"""
 
 # ----- Global Values ----
 ADC_ADDRESS = 0x4a
@@ -185,13 +170,7 @@ class KnobController:
 		# - Initializing -
 		# Defining the number associated with this motor and potentiometer combo
 		self.knobNumber = knobNumber
-
-		# Create the pid controller
-		self.pid = PID(0.4, 0.33, 0.05)
-
-		# Setting the sampling time
-		self.samplingTime = 0.005
-		self.pid.sample_time = self.samplingTime
+		self.hasSettled = False
 
 		# --- Creating Control Range ---
 		# - Defining Operational Range -
@@ -203,6 +182,17 @@ class KnobController:
 		deadzoneLowerBound = self.deadzoneCenter - self.deadzoneSize/2
 		self.pidLowerBound = deadzoneLowerBound - self.speedMagnitude
 		self.pidUpperBound = deadzoneLowerBound + self.speedMagnitude
+
+		# - Defining PID Controller -
+		# Create the pid controller
+		startingValue = np.mean([self.pidLowerBound, self.pidUpperBound])
+		self.pid = PID(0.4, 0.33, 0.05, starting_output=startingValue)
+
+		# Setting the sampling time
+		self.samplingTime = 0.005
+		self.pid.sample_time = self.samplingTime
+
+		# Set output limits
 		self.pid.output_limits = (self.pidLowerBound, self.pidUpperBound)
 		print(f"PID Limits: {self.pid.output_limits}")
 
@@ -239,11 +229,6 @@ class KnobController:
 
 		# Potentiometer Filter
 		self.potentiometerFilter = MovingAverage(filterSize)
-
-		# Populate the filter with the current location so the system knows where it is
-		for i in range(0, filterSize):
-			self.ReadPotentiometerValue(self.knobNumber)
-		# 
 		
 		# On-off Filter
 		self.onOffFilter = MovingAverage(filterSize)
@@ -252,6 +237,12 @@ class KnobController:
 		self.settlingTime = settlingTime
 		settlingWindowSize = self.settlingTime//self.samplingTime
 		self.settlingFilter = MovingAverage(settlingWindowSize)
+
+		# Populate filters
+		for i in range(0, min(filterSize, settlingWindowSize)):
+			value = self.ReadPotentiometerValue(self.knobNumber)
+			self.SetHasSettled(value)
+		# 
 
 		# --- Stats ---
 		# Recording min and max speeds
@@ -369,25 +360,56 @@ class KnobController:
 			self.pid.output_limits = (self.pidLowerBound, self.pidUpperBound)
 		# 
 	# 
-		
+
+	def SetHasSettled(self, potentiometerValue):
+		"""
+		Returns 1 if the system has settled, updates the float that indicates
+		if the system has settled or not
+		"""
+
+		self.errorDelta = self.pid.setpoint - potentiometerValue
+		isWithinTolerance = (abs(self.errorDelta) < self.currentErrorMagnitude)
+		self.hasSettled = self.settlingFilter(isWithinTolerance)
+
+		return self.hasSettled
+	# 
+
+	def GetHasSettled(self):
+		"""
+		Returns self.hasSettled as a bool
+		"""
+		return bool(math.floor(self.hasSettled))
+	# 
 	
 	def __call__(self, setpoint):
 		"""
 		Move knob to next location
 		"""
+		self.pid.setpoint = setpoint
+		
+		# --- Update Settling State ---
+		potentiometerValue = self.ReadPotentiometerValue(self.knobNumber)
+		self.SetHasSettled(potentiometerValue)
+
+		print(f"Moving to: {self.pid.setpoint} from {potentiometerValue}")
+		
 		# Debugging Settings
 		secondsBetweenToggle = 5
 		secondsBetweenUpdates = 0.05
 
+		# setpoints = deque([50, 205, 30, 225, 100, 155, 10, 245])
+		# setpoints = deque([15, 240, 10, 245, 8, 247, 5, 250])
+		
 		updateMod = secondsBetweenUpdates//self.samplingTime
 		
 		count = 0
 		resetCountAt = secondsBetweenToggle*(1//self.samplingTime)
-		while True:
+		print(f"Set? {self.hasSettled}")
+		while (not self.GetHasSettled()):
 			# --- Rotate through Setpoints ---
 			# Iterating through setpoints
 			if (count > resetCountAt):
-				self.pid.setpoint = random.randint(self.minimumPotentiometerValue + 5, self.maximumPotentiometerValue - 5)
+				# self.pid.setpoint = random.randint(self.minimumPotentiometerValue + 5, self.maximumPotentiometerValue - 5)
 				
 				# self.pid.setpoint = setpoints[0]
 				# setpoints.rotate(-1)
@@ -396,13 +418,13 @@ class KnobController:
 				count += 1
 			#
 			
-			# --- Read Potentiometers ---
+			# --- Read Knob Position ---
 			# Read the current value of the knob
 			potentiometerValue = self.ReadPotentiometerValue(self.knobNumber)
 
 			# Read the current value of the other knob
 			rawOnOffValue = self.ReadRawPotentiometerValue(2)
-			onOffValue = self.onOffFilter(rawOnOffValue)
+			self.onOffValue = self.onOffFilter(rawOnOffValue)
 
 			# --- Calculate New Motor Speed ---
 			# Calculate new output speed
@@ -412,86 +434,16 @@ class KnobController:
 			recommendedSpeed = self.ApplyDeadzone(pidRecommendation)
 
 			# - Account for outer padding -
-			# if (potentiometerValue < self.minimumPotentiometerValue + self.paddingInnerThreshold):
-			# 	# Determine the percentage of padding used
-			# 	if (potentiometerValue < self.minimumPotentiometerValue + self.paddingOuterThreshold):
-			# 		# To close to edge, no padding left
-			# 		percentageOfPaddingRemaining = 0
-			# 	else:
-			# 		# In padding zone, determine amount of padding region left
-			# 		percentageOfPaddingRemaining = \
-			# 			(self.minimumPotentiometerValue + potentiometerValue \
-	   		# 				- self.paddingOuterThreshold) \
-			# 			/ (self.paddingInnerThreshold - self.paddingOuterThreshold)
-			# 	#
-
-			# 	# Determine amount to reduce speed by
-			# 	percentageUsed = 1 - percentageOfPaddingRemaining
-			# 	speedReduction = (percentageUsed)*(self.speedBlendingRange)
-
-			# 	# Determine the fastest allowable speed
-			# 	speedLimit = self.pidLowerBound + speedReduction
-
-			# 	# Adjust speed accordingly
-			# 	newSpeed = recommendedSpeed
-
-			# 	# Update PID integral bounds
-			# 	self.pid.output_limits = (speedLimit, self.pidUpperBound)
-			# elif (potentiometerValue > self.maximumPotentiometerValue - self.paddingInnerThreshold):
-			# 	# Determine the percentage of padding used
-			# 	if (potentiometerValue > self.maximumPotentiometerValue - self.paddingOuterThreshold):
-			# 		# To close to edge, no padding left
-			# 		percentageOfPaddingRemaining = 0
-			# 	else:
-			# 		# In padding zone, determine amount of padding region left
-
-			# 		percentageOfPaddingRemaining = (self.maximumPotentiometerValue - potentiometerValue \
-			# 				- self.paddingOuterThreshold) / (self.paddingInnerThreshold - self.paddingOuterThreshold)
-
-			# 	# 
-				
-			# 	# Determine how far the system is from the outer edge
-			# 	percentageUsed = 1 - percentageOfPaddingRemaining
-				
-			# 	# Determine amount to reduce speed by
-			# 	speedReduction = (percentageUsed)*(self.speedBlendingRange)
-
-			# 	# Determine the fastest allowable speed
-			# 	speedLimit = self.pidUpperBound - speedReduction
-
-			# 	# Adjust speed accordingly
-			# 	newSpeed = recommendedSpeed
-
-			# 	# Update PID integral bounds
-			# 	self.pid.output_limits = (self.pidLowerBound, speedLimit)
-			# else:
-			# 	percentageOfPaddingRemaining = 1
-			# 	speedReduction = 0
-				
-			# 	if (recommendedSpeed < self.deadzoneCenter):
-			# 		speedLimit = self.pidLowerBound
-			# 	else:
-			# 		speedLimit = self.pidUpperBound
-			# 	#
-
-			# 	newSpeed = recommendedSpeed
-
-			# 	# Reset the bounds to normal
-			# 	self.pid.output_limits = (self.pidLowerBound, self.pidUpperBound)
-			# # 
-
 			self.ReducePidBoundsAtExtremes(recommendedSpeed, potentiometerValue)
 
 			# - Has Settled? -
-			# Udate Error Magnitude
+			# Udate currentErrorMagnitude if the setpoint has changed
 			if (self.pid.setpoint != self.lastSetpoint):
 				self.currentErrorMagnitude = self.errorMagnitude
 			#
 			
 			# Process Error
-			errorDelta = self.pid.setpoint - potentiometerValue
-			isWithinTolerance = (abs(errorDelta) < self.currentErrorMagnitude)
-			hasSettled = self.settlingFilter(isWithinTolerance)
+			hasSettled = self.SetHasSettled(potentiometerValue)
 			
 			# - Update Servo Speed -
 			if ((hasSettled < int(True))):
@@ -527,13 +479,14 @@ class KnobController:
 				print(f"Pos: {potentiometerValue:5.1f} | Tgt: {self.pid.setpoint:3} |" \
 					# + f" L Tgt: {self.lastSetpoint:3} |" \
 					+ f" Err: {self.currentErrorMagnitude:2} |" \
-					+ f" Δ: {errorDelta:6.1f} | Set?: {hasSettled:6.4f} |" \
+					+ f" Δ: {self.errorDelta:6.1f} | Set?: {hasSettled:6.4f} |" \
+					+ f" Lim: ({self.pid.output_limits[0]:5.2f}, {self.pid.output_limits[1]:5.2f}) |" \
 					# + f" R Spd: {recommendedSpeed:.2f} |" \
 					# + f" %:{percentageOfPaddingRemaining:4.2f} |" \
 					# + f" Red:{speedReduction:4.1f} |" \
 					# + f" L:{speedLimit:5.2f} |" \
 					+ f" Spd:{newSpeed:5.2f} |" \
-					+ f" On Off:{onOffValue:5.1f} |"\
+					+ f" On Off:{self.onOffValue:5.1f} |"\
 					+ f" S:{servoStopped*100:3} |"\
 					+ f" P: {float(prevP):7.1f} I: {float(prevI):5.3f} D: {float(prevD):5.2f}")
 				# 
@@ -543,7 +496,8 @@ class KnobController:
 			# So the pi doesn't over-work itself
 			time.sleep(self.samplingTime)
 
-			if (onOffValue > 127):
+			if (self.onOffValue > 127):
+				print("I'm done!")
 				break
 
 			# --- Record for Next Iteration ---
@@ -571,4 +525,16 @@ class KnobController:
 if __name__ == "__main__":
 	knob = KnobController(0)
 	knob(127)
+	time.sleep(2)
+
+	while True:
+		randomSetpoint = random.randint(0 + 5, 255 - 5)
+		print(f"# Go To: {randomSetpoint} | on? {knob.onOffValue}")
+		
+		knob(randomSetpoint)
+
+		if (knob.onOffValue > 127):
+			break
+		time.sleep(10)
+	# 
 # 
