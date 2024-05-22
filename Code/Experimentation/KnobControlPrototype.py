@@ -261,6 +261,9 @@ class KnobController:
 		# Set using the same strategy as the other bounds were set
 		self.deadzoneLowerBound = self.maxSpeed
 		self.deadzoneUpperBound = self.minSpeed
+
+		# Don't know what this value is yet
+		self.endTime = None
 	# 
 
 	# --- Potentiometer ---
@@ -428,19 +431,19 @@ class KnobController:
 		return currentLog
 	# 
 	
-	def __call__(self, setpoint, printDebugValues = True):
+	def __call__(self, setpoint, sequential = True, printDebugValues = True):
 		"""
 		Move knob to next location
-		"""
-		# --- Forcing Setpoint to be a Number ---
-		print(f"set: {setpoint}")
-		setpoint = int(setpoint)
-		print(f"set: {setpoint}")
 
+		setpoint : next location to move to
+		sequential : if true, call will not exit until system has settled
+		printDebugValues : if true, prints debug values during operation
+		"""
 		# --- Preparing for Logging ---
 		self.startTime = time.monotonic()
 
 		# --- Updating Controller Settings ---
+		# Sequential Operation
 		self.startSetpoint = self.lastSetpoint
 		self.pid.setpoint = setpoint
 
@@ -471,110 +474,213 @@ class KnobController:
 		secondsBetweenUpdates = 0.05
 		updateMod = secondsBetweenUpdates//self.samplingTime
 		
-		count = 0
-		resetCountAt = updateMod
-		while (not self.GetHasSettled()):
-			# --- Rotate through Setpoints ---
-			# Iterating through setpoints
-			if (count > resetCountAt):
-				count = 0
-			else:
-				count += 1
-			#
+		self.count = 0
+		self.resetCountAt = updateMod
+
+		if (sequential):
+			# For sequential operation
+			while (not self.GetHasSettled()):
+				self.Update()
+				time.sleep(self.samplingTime)
+			# 
+		elif (not self.GetHasSettled() and (self.endTime is not None)):
+			# For parallel operation
+			self.Update()
+		# 
 			
-			# --- Read Knob Position ---
-			# Read the current value of the knob
-			potentiometerValue = self.ReadPotentiometerValue(self.knobNumber)
-
-			# --- Calculate New Motor Speed ---
-			# Calculate new output speed
-			pidRecommendation = self.pid(potentiometerValue)
-
-			# # Bypassing the deadspot in the middle
-			recommendedSpeed = self.ApplyDeadzone(pidRecommendation)
-
-			# - Account for outer padding -
-			self.ReducePidBoundsAtExtremes(recommendedSpeed, potentiometerValue)
-
-			# - Has Settled? -
-			hasSettled = self.SetHasSettled(potentiometerValue)
+		# while ((not self.GetHasSettled()) and sequential):
+		# 	# --- Rotate through Setpoints ---
+		# 	# Iterating through setpoints
+		# 	if (count > resetCountAt):
+		# 		count = 0
+		# 	else:
+		# 		count += 1
+		# 	#
 			
-			# - Update Servo Speed -
-			if ((hasSettled < int(True))):
-				# servoHat.move_servo_position(self.knobNumber, newSpeed)
-				servoHat.move_servo_position(self.knobNumber, recommendedSpeed)
-				servoStopped = False
-			else:
-				servoHat.move_servo_position(self.knobNumber, 180)
-				servoStopped = True
+		# 	# --- Read Knob Position ---
+		# 	# Read the current value of the knob
+		# 	potentiometerValue = self.ReadPotentiometerValue(self.knobNumber)
+
+		# 	# --- Calculate New Motor Speed ---
+		# 	# Calculate new output speed
+		# 	pidRecommendation = self.pid(potentiometerValue)
+
+		# 	# # Bypassing the deadspot in the middle
+		# 	recommendedSpeed = self.ApplyDeadzone(pidRecommendation)
+
+		# 	# - Account for outer padding -
+		# 	self.ReducePidBoundsAtExtremes(recommendedSpeed, potentiometerValue)
+
+		# 	# - Has Settled? -
+		# 	hasSettled = self.SetHasSettled(potentiometerValue)
+			
+		# 	# - Update Servo Speed -
+		# 	if ((hasSettled < int(True))):
+		# 		# servoHat.move_servo_position(self.knobNumber, newSpeed)
+		# 		servoHat.move_servo_position(self.knobNumber, recommendedSpeed)
+		# 		servoStopped = False
+		# 	else:
+		# 		servoHat.move_servo_position(self.knobNumber, 180)
+		# 		servoStopped = True
 				
-				# Relax error bounds
-				self.currentErrorMagnitude = self.settledErrorMagnitude
-			# 
+		# 		# Relax error bounds
+		# 		self.currentErrorMagnitude = self.settledErrorMagnitude
+		# 	# 
 			
-			# --- Stats and Record Keeping - --
+		# 	# --- Stats and Record Keeping - --
 
-			# - Update recorded stats -
-			newSpeed = recommendedSpeed
-			# Overall Speed Values
-			self.minSpeed = min(newSpeed, self.minSpeed)
-			self.maxSpeed = max(newSpeed, self.maxSpeed)
+		# 	# - Update recorded stats -
+		# 	newSpeed = recommendedSpeed
+		# 	# Overall Speed Values
+		# 	self.minSpeed = min(newSpeed, self.minSpeed)
+		# 	self.maxSpeed = max(newSpeed, self.maxSpeed)
 
-			# Speeds closest to deadzone
-			if (newSpeed < self.deadzoneCenter):
-				self.deadzoneLowerBound = max(newSpeed, self.deadzoneLowerBound)
-			else:
-				self.deadzoneUpperBound = min(newSpeed, self.deadzoneUpperBound)
-			# 
+		# 	# Speeds closest to deadzone
+		# 	if (newSpeed < self.deadzoneCenter):
+		# 		self.deadzoneLowerBound = max(newSpeed, self.deadzoneLowerBound)
+		# 	else:
+		# 		self.deadzoneUpperBound = min(newSpeed, self.deadzoneUpperBound)
+		# 	# 
 
-			# No need to update every single cycle
-			if ((count % updateMod == 0) and printDebugValues):
-				prevP, prevI, prevD = self.pid.components
-				print(f"#: {self.knobNumber} | " \
-					+ f"Pos: {potentiometerValue:5.1f} | Tgt: {self.pid.setpoint:3} |" \
-					# + f" L Tgt: {self.lastSetpoint:3} |" \
-					+ f" Err: {self.currentErrorMagnitude:4.2f} |" \
-					+ f" Δ: {self.errorDelta:6.1f} |" \
-					+ f" O: {self.overshoot:4.1f}" \
-					+ f" Set?: {hasSettled:6.4f} |" \
-					+ f" Lim: ({self.pid.output_limits[0]:5.2f}, {self.pid.output_limits[1]:5.2f}) |" \
-					# + f" R Spd: {recommendedSpeed:.2f} |" \
-					# + f" %:{percentageOfPaddingRemaining:4.2f} |" \
-					# + f" Red:{speedReduction:4.1f} |" \
-					# + f" L:{speedLimit:5.2f} |" \
-					+ f" Spd:{newSpeed:5.2f} |" \
-					# + f" On Off:{self.onOffValue:5.1f} |"\
-					# + f" S:{servoStopped*100:3} |"\
-					+ f" P: {float(prevP):7.1f} I: {float(prevI):5.3f} D: {float(prevD):5.2f}")
-				# 
-			# 
+		# 	# No need to update every single cycle
+		# 	if ((count % updateMod == 0) and printDebugValues):
+		# 		prevP, prevI, prevD = self.pid.components
+		# 		print(f"#: {self.knobNumber} | " \
+		# 			+ f"Pos: {potentiometerValue:5.1f} | Tgt: {self.pid.setpoint:3} |" \
+		# 			# + f" L Tgt: {self.lastSetpoint:3} |" \
+		# 			+ f" Err: {self.currentErrorMagnitude:4.2f} |" \
+		# 			+ f" Δ: {self.errorDelta:6.1f} |" \
+		# 			+ f" O: {self.overshoot:4.1f}" \
+		# 			+ f" Set?: {hasSettled:6.4f} |" \
+		# 			+ f" Lim: ({self.pid.output_limits[0]:5.2f}, {self.pid.output_limits[1]:5.2f}) |" \
+		# 			# + f" R Spd: {recommendedSpeed:.2f} |" \
+		# 			# + f" %:{percentageOfPaddingRemaining:4.2f} |" \
+		# 			# + f" Red:{speedReduction:4.1f} |" \
+		# 			# + f" L:{speedLimit:5.2f} |" \
+		# 			+ f" Spd:{newSpeed:5.2f} |" \
+		# 			# + f" On Off:{self.onOffValue:5.1f} |"\
+		# 			# + f" S:{servoStopped*100:3} |"\
+		# 			+ f" P: {float(prevP):7.1f} I: {float(prevI):5.3f} D: {float(prevD):5.2f}")
+		# 		# 
+		# 	# 
 			
-			# --- Delay ---
-			# So the pi doesn't over-work itself
-			time.sleep(self.samplingTime)
+		# 	# --- Delay ---
+		# 	# So the pi doesn't over-work itself
+		# 	time.sleep(self.samplingTime)
 
-			# --- Record for Next Iteration ---
-			# Track Setpoints
-			self.lastSetpoint = self.pid.setpoint
+		# 	# --- Record for Next Iteration ---
+		# 	# Track Setpoints
+		# 	self.lastSetpoint = self.pid.setpoint
+		# # 
+
+		# Has the system settled before?
+		if (self.GetHasSettled() and (self.endTime is None)):
+			# Time to stop
+			servoHat.move_servo_position(self.knobNumber, 180)
+			self.endTime = time.monotonic()
+			self.log = self.GenerateLog()
+			
+			print("")
+			print(f"Min Speed: {self.minSpeed} | Max Speed: {self.maxSpeed} | Avg: {np.mean([self.minSpeed, self.maxSpeed])}")
+			print(f"Magnitude: {self.speedMagnitude}")
+			print(f"PID Bounds: {(self.pidLowerBound, self.pidUpperBound)} | Center: {np.mean([self.pidLowerBound, self.pidUpperBound])}")
+			print(f"PID Min Output: {self.minSpeed} | PID Max Output: {self.maxSpeed - self.deadzoneSize} | Max Commanded: {self.maxSpeed}")
+			print("")
+			print(f"Current Bounds: {self.pid.output_limits}")
+			print(f"Deadzone Lower Bound: {self.deadzoneLowerBound} | Deadzone Upper Bound: {self.deadzoneUpperBound}")
+			print(f"Padded Limits: {(self.paddingLowerBound, self.paddingUpperBound)} | Magnitude: {self.paddingSpeedMagnitude}")
+			print(f"Difference Between Bounds: {self.speedBlendingRange}")
+			print("")
+			print(f"Log: {self.log}")
+		# 
+	# 
+
+	def Update(self, printDebugValues = True):
+		"""
+		Updates the controller by one time step
+		"""
+		# --- Rotate through Setpoints ---
+		# Iterating through setpoints
+		if (self.count > self.resetCountAt):
+			self.count = 0
+		else:
+			self.count += 1
+		#
+		
+		# --- Read Knob Position ---
+		# Read the current value of the knob
+		potentiometerValue = self.ReadPotentiometerValue(self.knobNumber)
+
+		# --- Calculate New Motor Speed ---
+		# Calculate new output speed
+		pidRecommendation = self.pid(potentiometerValue)
+
+		# # Bypassing the deadspot in the middle
+		recommendedSpeed = self.ApplyDeadzone(pidRecommendation)
+
+		# - Account for outer padding -
+		self.ReducePidBoundsAtExtremes(recommendedSpeed, potentiometerValue)
+
+		# - Has Settled? -
+		hasSettled = self.SetHasSettled(potentiometerValue)
+		
+		# - Update Servo Speed -
+		if ((hasSettled < int(True))):
+			# servoHat.move_servo_position(self.knobNumber, newSpeed)
+			servoHat.move_servo_position(self.knobNumber, recommendedSpeed)
+			servoStopped = False
+		else:
+			servoHat.move_servo_position(self.knobNumber, 180)
+			servoStopped = True
+			
+			# Relax error bounds
+			self.currentErrorMagnitude = self.settledErrorMagnitude
+		# 
+		
+		# --- Stats and Record Keeping - --
+
+		# - Update recorded stats -
+		newSpeed = recommendedSpeed
+		# Overall Speed Values
+		self.minSpeed = min(newSpeed, self.minSpeed)
+		self.maxSpeed = max(newSpeed, self.maxSpeed)
+
+		# Speeds closest to deadzone
+		if (newSpeed < self.deadzoneCenter):
+			self.deadzoneLowerBound = max(newSpeed, self.deadzoneLowerBound)
+		else:
+			self.deadzoneUpperBound = min(newSpeed, self.deadzoneUpperBound)
 		# 
 
-		# Time to stop
-		servoHat.move_servo_position(self.knobNumber, 180)
-		self.endTime = time.monotonic()
-		self.log = self.GenerateLog()
+		# No need to update every single cycle
+		if ((self.count % self.resetCountAt == 0) and printDebugValues):
+			prevP, prevI, prevD = self.pid.components
+			print(f"#: {self.knobNumber} | " \
+				+ f"Pos: {potentiometerValue:5.1f} | Tgt: {self.pid.setpoint:3} |" \
+				# + f" L Tgt: {self.lastSetpoint:3} |" \
+				+ f" Err: {self.currentErrorMagnitude:4.2f} |" \
+				+ f" Δ: {self.errorDelta:6.1f} |" \
+				+ f" O: {self.overshoot:4.1f}" \
+				+ f" Set?: {hasSettled:6.4f} |" \
+				+ f" Lim: ({self.pid.output_limits[0]:5.2f}, {self.pid.output_limits[1]:5.2f}) |" \
+				# + f" R Spd: {recommendedSpeed:.2f} |" \
+				# + f" %:{percentageOfPaddingRemaining:4.2f} |" \
+				# + f" Red:{speedReduction:4.1f} |" \
+				# + f" L:{speedLimit:5.2f} |" \
+				+ f" Spd:{newSpeed:5.2f} |" \
+				# + f" On Off:{self.onOffValue:5.1f} |"\
+				# + f" S:{servoStopped*100:3} |"\
+				+ f" P: {float(prevP):7.1f} I: {float(prevI):5.3f} D: {float(prevD):5.2f}")
+			# 
+		# 
 		
-		print("")
-		print(f"Min Speed: {self.minSpeed} | Max Speed: {self.maxSpeed} | Avg: {np.mean([self.minSpeed, self.maxSpeed])}")
-		print(f"Magnitude: {self.speedMagnitude}")
-		print(f"PID Bounds: {(self.pidLowerBound, self.pidUpperBound)} | Center: {np.mean([self.pidLowerBound, self.pidUpperBound])}")
-		print(f"PID Min Output: {self.minSpeed} | PID Max Output: {self.maxSpeed - self.deadzoneSize} | Max Commanded: {self.maxSpeed}")
-		print("")
-		print(f"Current Bounds: {self.pid.output_limits}")
-		print(f"Deadzone Lower Bound: {self.deadzoneLowerBound} | Deadzone Upper Bound: {self.deadzoneUpperBound}")
-		print(f"Padded Limits: {(self.paddingLowerBound, self.paddingUpperBound)} | Magnitude: {self.paddingSpeedMagnitude}")
-		print(f"Difference Between Bounds: {self.speedBlendingRange}")
-		print("")
-		print(self.log)
+		# --- Delay ---
+		# So the pi doesn't over-work itself
+		# time.sleep(self.samplingTime)
+
+		# --- Record for Next Iteration ---
+		# Track Setpoints
+		self.lastSetpoint = self.pid.setpoint		
 	# 
 # 
 
@@ -602,6 +708,9 @@ class KnobSuite:
 			self.knobs.append(knobController)
 		# 
 
+		# Other useful variables
+		self.samplingTime = knobController.samplingTime
+
 	# 
 
 	def __call__(self, setpointList, printDebugValues = True):
@@ -625,6 +734,7 @@ class KnobSuite:
 			# Update Knob
 			knobController(setpoint)
 		# 
+
 	# 
 # 
 
@@ -634,17 +744,8 @@ if __name__ == "__main__":
 	# knobSuite = KnobSuite(2, speedMagnitude=15)
 	knobSuite = KnobSuite(2)
 	
-	# knob0 = KnobController(0)
-	# knob1 = KnobController(1)
-	
 	knobSuite([127, 127])
 	
-	# knob0(127)
-	# print("Log0" + str(knob0.log))
-	
-	# knob1(127)
-	# print("Log1" + str(knob1.log))
-
 	if (ReadPotentiometer(2) > 127):
 		exit()
 	# 
