@@ -143,7 +143,8 @@ class KnobController:
 			  minimumPotentiometerValue = 0, maximumPotentiometerValue = 255,
 			  speedMagnitude = 30, boundarySpeedMagnitude = 4,
 			  boundaryOuterThreshold = 20, boundaryInnerThreshold = 40,
-			  errorMagnitude = 1.1, settledErrorMagnitude = 5, settlingTime = 0.25):
+			  errorMagnitude = 1.1, settledErrorMagnitude = 5, settlingTime = 0.25,
+			  printDebugValues = True):
 		"""
 		Creates an instance of the class
 
@@ -169,7 +170,7 @@ class KnobController:
 		
 		# - Initializing -
 		# Defining the number associated with this motor and potentiometer combo
-		self.knobNumber = knobNumber
+		self.knobNumber = int(knobNumber)
 		self.hasSettled = False
 
 		# --- Creating Control Range ---
@@ -194,7 +195,9 @@ class KnobController:
 
 		# Set output limits
 		self.pid.output_limits = (self.pidLowerBound, self.pidUpperBound)
-		print(f"PID Limits: {self.pid.output_limits}")
+		if printDebugValues:
+			print(f"PID Limits: {self.pid.output_limits}")
+		# 
 
 		# - Defining Padding near Boundaires -
 		# Define the outer "padding"
@@ -208,10 +211,12 @@ class KnobController:
 		# Calculating Padding Constants
 		self.paddingLowerBound = deadzoneLowerBound - self.paddingSpeedMagnitude
 		self.paddingUpperBound = deadzoneLowerBound + self.paddingSpeedMagnitude
-		print(f"Padded Limits: {(self.paddingLowerBound, self.paddingUpperBound)}")
-
 		self.speedBlendingRange = (self.paddingLowerBound - self.pidLowerBound)
-		print(f"Difference Between Bounds: {self.speedBlendingRange}")
+		
+		if printDebugValues:
+			print(f"Padded Limits: {(self.paddingLowerBound, self.paddingUpperBound)}")
+			print(f"Difference Between Bounds: {self.speedBlendingRange}")
+		# 
 
 		# --- Defining Initial Setpoint ---
 		medianValue = np.mean([self.minimumPotentiometerValue, self.maximumPotentiometerValue], dtype = int)
@@ -421,11 +426,17 @@ class KnobController:
 		self.log = currentLog
 
 		return currentLog
+	# 
 	
 	def __call__(self, setpoint, printDebugValues = True):
 		"""
 		Move knob to next location
 		"""
+		# --- Forcing Setpoint to be a Number ---
+		print(f"set: {setpoint}")
+		setpoint = int(setpoint)
+		print(f"set: {setpoint}")
+
 		# --- Preparing for Logging ---
 		self.startTime = time.monotonic()
 
@@ -562,19 +573,77 @@ class KnobController:
 		print(f"Deadzone Lower Bound: {self.deadzoneLowerBound} | Deadzone Upper Bound: {self.deadzoneUpperBound}")
 		print(f"Padded Limits: {(self.paddingLowerBound, self.paddingUpperBound)} | Magnitude: {self.paddingSpeedMagnitude}")
 		print(f"Difference Between Bounds: {self.speedBlendingRange}")
+		print("")
+		print(self.log)
 	# 
 # 
 
+class KnobSuite:
+	"""
+	This class adjusts all the knobs in a suite simultaneously while avoiding
+	conflicts on the i2c line
+	"""
+
+	def __init__(self, numberOfKnobs, **kwargs):
+		"""
+		Initializes the knob suite
+
+		numberOfKnobs : number of knobs to create, channels begin at at 0 and count up to
+			this number minus 1
+		**kwargs : named arguments to sent to each KnobController instance
+		"""
+
+		self.numberOfKnobs = numberOfKnobs
+		self.knobs = []
+		
+		# Creating the suite of knobs
+		for number in range(0, numberOfKnobs):
+			knobController = KnobController(number, **kwargs)
+			self.knobs.append(knobController)
+		# 
+
+	# 
+
+	def __call__(self, setpointList, printDebugValues = True):
+		"""
+		Updates all knobs in the suite at the same time
+
+		setpointList: list of setpoints to pass to knobs. The index the value is at
+			corresponds to the knob channel the command will be sent to. No channels will be
+			skipped
+		"""
+
+		for number in range(0, self.numberOfKnobs):
+			# Get Knob and Setpoint
+			knobController = self.knobs[number]
+			setpoint = setpointList[number]
+			
+			if printDebugValues:
+				print(f"Num: {number} | Setpoint: {setpoint}")
+			# 
+			
+			# Update Knob
+			knobController(setpoint)
+		# 
+	# 
+# 
+
+
 # ----- Begin Program -----
 if __name__ == "__main__":
-	knob0 = KnobController(0)
-	knob1 = KnobController(1)
+	# knobSuite = KnobSuite(2, speedMagnitude=15)
+	knobSuite = KnobSuite(2)
 	
-	knob0(127)
-	print("Log0" + str(knob0.log))
+	# knob0 = KnobController(0)
+	# knob1 = KnobController(1)
 	
-	knob1(127)
-	print("Log1" + str(knob1.log))
+	knobSuite([127, 127])
+	
+	# knob0(127)
+	# print("Log0" + str(knob0.log))
+	
+	# knob1(127)
+	# print("Log1" + str(knob1.log))
 
 	if (ReadPotentiometer(2) > 127):
 		exit()
@@ -584,12 +653,16 @@ if __name__ == "__main__":
 	while True:
 		randomSetpoint = random.randint(0 + 5, 255 - 5)
 		print(f"# Go To: {randomSetpoint}")
+
+		setpoints = list(randomSetpoint*np.ones(knobSuite.numberOfKnobs, dtype = float))
+
+		knobSuite(setpoints)
 		
-		knob0(randomSetpoint)
-		print("Log0" + str(knob0.log))
+		# knob0(randomSetpoint)
+		# print("Log0" + str(knob0.log))
 		
-		knob1(randomSetpoint)
-		print("Log1" + str(knob1.log))
+		# knob1(randomSetpoint)
+		# print("Log1" + str(knob1.log))
 
 		if (ReadPotentiometer(2) > 127):
 			break
