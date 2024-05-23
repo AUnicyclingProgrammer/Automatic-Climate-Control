@@ -267,7 +267,8 @@ class KnobController:
 
 		# --- Indicating that the System has Intialized ---
 		self.updated = False
-		self.settledAndTerminated = False
+		self.terminatedCleanly = False
+		self.newInstance = True
 		
 		# --- Creating First Log ---
 		self.startSetpoint = self.lastSetpoint
@@ -406,7 +407,6 @@ class KnobController:
 		#
 
 		self.lastPotentiometerValue = potentiometerValue
-		print(f"#: {self.knobNumber} | New Settling Value: {self.hasSettled}")
 
 		return self.hasSettled
 	# 
@@ -423,15 +423,6 @@ class KnobController:
 		"""
 		Returns self.hasSettled as a bool
 		"""
-
-		if (self.log is not None):
-			currentSetpoint = self.pid.setpoint
-			logSetpoint = self.log["endSetpoint"]
-			print(f"Setpoint: {currentSetpoint} | Log Set: {logSetpoint}")
-			if (currentSetpoint != logSetpoint):
-				self.hasSettled = False
-			# 
-		# 
 		
 		self.UpdateHasSettled()
 		return bool(math.floor(self.hasSettled))
@@ -464,10 +455,22 @@ class KnobController:
 		return currentLog
 	# 
 
+	def GetLastSetpoint(self):
+		"""
+		Retreives the previous setpoint from the log
+		"""
+
+		return self.log["endSetpoint"]
+	# 
+
 	def UpdateSetpoint(self, setpoint):
 		"""
 		Updates the setpoint without moving to the new location
 		"""
+		# if not self.newInstance:
+		# 	self.lastSetpoint = self.pid.setpoint
+		# 
+
 		self.pid.setpoint = setpoint
 		
 		# If the setpoint has been manually changed then it should be overwritten
@@ -483,22 +486,6 @@ class KnobController:
 		printDebugValues : if true, prints debug values during operation
 		"""
 		# --- Determining State ---
-		print(f"#: {self.knobNumber} | Last: {self.lastSetpoint} | Cur: {self.pid.setpoint}")
-		
-		print(f"Has {self.knobNumber} Updated? : {self.updated} |"\
-			+ f" Settled: {self.GetHasSettled()} |"
-			+ f" Termianted? : {self.settledAndTerminated} |" \
-		)
-
-		# Update currentErrorMagnitude if the setpoint has changed
-		# if (self.pid.setpoint != self.lastSetpoint):
-		# 	self.currentErrorMagnitude = self.errorMagnitude
-			
-		# 	# If the setpoint has changed the class needs re-initialized
-		# 	self.updated = False
-		# 	self.settledAndTerminated = False
-		# #
-		
 		# Does the system need re-initialized?
 		if (not self.updated):
 			print(f"Updating {self.knobNumber}")
@@ -507,12 +494,12 @@ class KnobController:
 
 			# --- Updating Controller Settings ---
 			# Sequential Operation
-			self.startSetpoint = self.lastSetpoint
+			self.startSetpoint = self.GetLastSetpoint()
 			self.pid.setpoint = setpoint
 			
 			# --- Update Settling State ---
 			# First make sure the setpoint hasn't changed
-			if (self.pid.setpoint != self.lastSetpoint):
+			if (self.pid.setpoint != self.GetLastSetpoint()):
 				# Different setpoint, reset error bounds
 				self.currentErrorMagnitude = self.errorMagnitude
 			# 
@@ -526,7 +513,7 @@ class KnobController:
 			self.overshoot = 0
 
 			# Recording starting position so overshoot can be calculated
-			self.startingPosition = self.lastSetpoint
+			self.startingPosition = self.lastPotentiometerValue
 			
 			# System is rising it is currently at a value below the setpoint
 			self.rising = (self.startingPosition < self.pid.setpoint)
@@ -534,7 +521,7 @@ class KnobController:
 			# --- Update Complete, Peparing to Move ---
 			# System has been updated, but that also means it hasn't officially exited yet
 			self.updated = True
-			self.settledAndTerminated = False
+			self.terminatedCleanly = False
 
 			if printDebugValues:
 				print(f"Moving {self.knobNumber} to: {self.pid.setpoint} from {self.startingPosition}. Rising?: {self.rising}")
@@ -554,35 +541,50 @@ class KnobController:
 				self.Update()
 				time.sleep(self.samplingTime)
 			# 
-		elif (not self.GetHasSettled()):
+		# elif (not self.GetHasSettled() and not self.terminatedCleanly):
+		# elif (not self.terminatedCleanly):
+		elif (not self.terminatedCleanly) or (not self.GetHasSettled()):
 			# For parallel operation
 			self.Update()
 		# 
 
 		# Is the system settled and has it officially exited yet?
-		if (self.GetHasSettled() and not self.settledAndTerminated):
+		# if (self.GetHasSettled() and self.updated and not self.terminatedCleanly):
+		# if ((self.GetHasSettled() and self.updated) or self.newInstance):
+		# if ((self.GetHasSettled() and self.newInstance) \
+		# 	or (self.GetHasSettled() and self.updated and not self.terminatedCleanly)):
+		print(f"Set {self.GetHasSettled()} | Up: {self.updated} | Term: {self.terminatedCleanly}")
+		if ((self.GetHasSettled() and self.newInstance) \
+			or (self.GetHasSettled() and self.updated) \
+			or (self.GetHasSettled() and not self.terminatedCleanly)):
 			# Time to stop
 			servoHat.move_servo_position(self.knobNumber, 180)
+			
+			# Log Data
 			self.endTime = time.monotonic()
+			self.lastSetpoint = self.pid.setpoint
 			self.log = self.GenerateLog()
 			
-			print("")
-			print(f"Min Speed: {self.minSpeed} | Max Speed: {self.maxSpeed} | Avg: {np.mean([self.minSpeed, self.maxSpeed])}")
-			print(f"Magnitude: {self.speedMagnitude}")
-			print(f"PID Bounds: {(self.pidLowerBound, self.pidUpperBound)} | Center: {np.mean([self.pidLowerBound, self.pidUpperBound])}")
-			print(f"PID Min Output: {self.minSpeed} | PID Max Output: {self.maxSpeed - self.deadzoneSize} | Max Commanded: {self.maxSpeed}")
-			print("")
-			print(f"Current Bounds: {self.pid.output_limits}")
-			print(f"Deadzone Lower Bound: {self.deadzoneLowerBound} | Deadzone Upper Bound: {self.deadzoneUpperBound}")
-			print(f"Padded Limits: {(self.paddingLowerBound, self.paddingUpperBound)} | Magnitude: {self.paddingSpeedMagnitude}")
-			print(f"Difference Between Bounds: {self.speedBlendingRange}")
-			print("")
-			print(f"Current Error: {self.errorDelta:6.2f}")
-			print(f"Log: {self.log}")
+			if printDebugValues:
+				print("")
+				print(f"Min Speed: {self.minSpeed} | Max Speed: {self.maxSpeed} | Avg: {np.mean([self.minSpeed, self.maxSpeed])}")
+				print(f"Magnitude: {self.speedMagnitude}")
+				print(f"PID Bounds: {(self.pidLowerBound, self.pidUpperBound)} | Center: {np.mean([self.pidLowerBound, self.pidUpperBound])}")
+				print(f"PID Min Output: {self.minSpeed} | PID Max Output: {self.maxSpeed - self.deadzoneSize} | Max Commanded: {self.maxSpeed}")
+				print("")
+				print(f"Current Bounds: {self.pid.output_limits}")
+				print(f"Deadzone Lower Bound: {self.deadzoneLowerBound} | Deadzone Upper Bound: {self.deadzoneUpperBound}")
+				print(f"Padded Limits: {(self.paddingLowerBound, self.paddingUpperBound)} | Magnitude: {self.paddingSpeedMagnitude}")
+				print(f"Difference Between Bounds: {self.speedBlendingRange}")
+				print("")
+				print(f"Current Error: {self.errorDelta:6.2f}")
+				print(f"Log: {self.log}")
+			# 
 
 			# System has officially exited, but this means it is not longer updated
-			self.settledAndTerminated = True
 			self.updated = False
+			self.terminatedCleanly = True
+			self.newInstance = False
 		# 
 	# 
 
@@ -590,7 +592,7 @@ class KnobController:
 		"""
 		Updates the controller by one time step
 		"""
-		print(f"#{self.knobNumber} is updating")
+		print(f"{self.knobNumber} is performing an update")
 		# --- Manage Loop Count and Prevent Overflow ---
 		if (self.count > self.resetCountAt):
 			self.count = 0
@@ -648,7 +650,7 @@ class KnobController:
 			prevP, prevI, prevD = self.pid.components
 			print(f"#: {self.knobNumber} | " \
 				+ f"Pos: {potentiometerValue:5.1f} | Tgt: {self.pid.setpoint:3} |" \
-				# + f" L Tgt: {self.lastSetpoint:3} |" \
+				# + f" L Tgt: {self.GetLastSetpoint():3} |" \
 				+ f" Err: {self.currentErrorMagnitude:4.2f} |" \
 				+ f" Δ: {self.errorDelta:6.1f} |" \
 				+ f" O: {self.overshoot:4.1f}" \
@@ -663,14 +665,14 @@ class KnobController:
 				# + f" S:{servoStopped*100:3} |"\
 				+ f" S:{self.GetHasSettled()*100:3} |"\
 				+ f" P: {float(prevP):7.1f} I: {float(prevI):5.3f} D: {float(prevD):5.2f} |" \
-				+ f" Cnt: {int(self.count)}" \
+				# + f" Cnt: {int(self.count)}" \
 			)
 			# 
 		# 
 		
 		# --- Record for Next Iteration ---
 		# Track Setpoints
-		self.lastSetpoint = self.pid.setpoint		
+		# self.lastSetpoint = self.pid.setpoint		
 	# 
 # 
 
@@ -701,8 +703,8 @@ class KnobSuite:
 		# 
 
 		# Other useful variables
+		# All controllers have the same sampling time
 		self.samplingTime = knobController.samplingTime
-
 	# 
 
 	def __call__(self, setpointList, sequential = True, printDebugValues = True):
@@ -718,7 +720,11 @@ class KnobSuite:
 		if printDebugValues:
 			for number in range(0, self.numberOfKnobs):
 				setpoint = setpointList[number]
-				print(f"Num: {number} | Setpoint: {setpoint} | Sequential? : {sequential}")
+				knobController = self.knobs[number]
+				print(f"Num: {number} | Setpoint: {setpoint} | Sequential? : {sequential} |" \
+					+ f" Settled: {knobController.GetHasSettled()} | Terminated?: {knobController.terminatedCleanly} |" \
+					+ f" Last Setpoint: {knobController.lastSetpoint}"
+				)
 			# 
 		# 
 
@@ -732,7 +738,10 @@ class KnobSuite:
 			knobController.UpdateSetpoint(setpoint)
 
 			# Update Settled Status
-			self.settledKnobs[number] = knobController.GetHasSettled()
+			# self.settledKnobs[number] = knobController.GetHasSettled()
+			# self.settledKnobs[number] = (knobController.GetHasSettled() \
+			# 			and knobController.terminatedCleanly)
+			self.settledKnobs[number] = knobController.terminatedCleanly
 
 			# Save Knob Instance
 			self.knobs[number] = knobController
@@ -752,7 +761,10 @@ class KnobSuite:
 				# 
 
 				# Has it settled
-				self.settledKnobs[number] = knobController.GetHasSettled()
+				# self.settledKnobs[number] = knobController.GetHasSettled()
+				# self.settledKnobs[number] = (knobController.GetHasSettled() \
+				# 		and knobController.terminatedCleanly)
+				self.settledKnobs[number] = knobController.terminatedCleanly
 
 				if not sequential:
 					time.sleep(self.samplingTime)	
