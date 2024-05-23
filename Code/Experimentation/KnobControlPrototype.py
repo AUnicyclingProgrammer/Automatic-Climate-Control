@@ -265,12 +265,16 @@ class KnobController:
 		self.deadzoneLowerBound = self.maxSpeed
 		self.deadzoneUpperBound = self.minSpeed
 
-		self.log = None
-
-		# Managing Parallel Operation
+		# --- Indicating that the System has Intialized ---
 		self.updated = False
-		self.endTime = None
 		self.settledAndTerminated = False
+		
+		# --- Creating First Log ---
+		self.startSetpoint = self.lastSetpoint
+		self.startTime = time.monotonic()
+		self.endTime = time.monotonic()
+		
+		self.GenerateLog()
 	# 
 
 	# --- Potentiometer ---
@@ -383,15 +387,11 @@ class KnobController:
 	# 
 
 	# --- Settling ---
-	def SetHasSettled(self, potentiometerValue = None):
+	def SetHasSettled(self, potentiometerValue):
 		"""
 		Returns 1 if the system has settled, updates the float that indicates
 		if the system has settled or not
 		"""
-
-		if potentiometerValue is None:
-			potentiometerValue = self.lastPotentiometerValue
-		# 
 		
 		self.errorDelta = potentiometerValue - self.pid.setpoint
 		isWithinTolerance = (abs(self.errorDelta) < self.currentErrorMagnitude)
@@ -406,8 +406,17 @@ class KnobController:
 		#
 
 		self.lastPotentiometerValue = potentiometerValue
+		print(f"#: {self.knobNumber} | New Settling Value: {self.hasSettled}")
 
 		return self.hasSettled
+	# 
+
+	def UpdateHasSettled(self):
+		"""
+		Updates the settling state using the last known potentiometer value
+		"""
+		potentiometerValue = self.lastPotentiometerValue
+		self.SetHasSettled(potentiometerValue)
 	# 
 
 	def GetHasSettled(self):
@@ -424,7 +433,7 @@ class KnobController:
 			# 
 		# 
 		
-		# self.SetHasSettled()
+		self.UpdateHasSettled()
 		return bool(math.floor(self.hasSettled))
 	# 
 
@@ -460,6 +469,9 @@ class KnobController:
 		Updates the setpoint without moving to the new location
 		"""
 		self.pid.setpoint = setpoint
+		
+		# If the setpoint has been manually changed then it should be overwritten
+		self.updated = False
 	# 
 	
 	def __call__(self, setpoint, sequential = True, printDebugValues = True):
@@ -470,21 +482,24 @@ class KnobController:
 		sequential : if true, call will not exit until system has settled
 		printDebugValues : if true, prints debug values during operation
 		"""
-		# --- Determining Operational State ---
-		# Update currentErrorMagnitude if the setpoint has changed
+		# --- Determining State ---
 		print(f"#: {self.knobNumber} | Last: {self.lastSetpoint} | Cur: {self.pid.setpoint}")
-		if (self.pid.setpoint != self.lastSetpoint):
-			self.currentErrorMagnitude = self.errorMagnitude
-			
-			# If the setpoint has changed the class needs re-initialized
-			self.updated = False
-			self.settledAndTerminated = False
-		#
+		
 		print(f"Has {self.knobNumber} Updated? : {self.updated} |"\
 			+ f" Settled: {self.GetHasSettled()} |"
 			+ f" Termianted? : {self.settledAndTerminated} |" \
 		)
+
+		# Update currentErrorMagnitude if the setpoint has changed
+		# if (self.pid.setpoint != self.lastSetpoint):
+		# 	self.currentErrorMagnitude = self.errorMagnitude
+			
+		# 	# If the setpoint has changed the class needs re-initialized
+		# 	self.updated = False
+		# 	self.settledAndTerminated = False
+		# #
 		
+		# Does the system need re-initialized?
 		if (not self.updated):
 			print(f"Updating {self.knobNumber}")
 			# --- Preparing for Logging ---
@@ -496,21 +511,30 @@ class KnobController:
 			self.pid.setpoint = setpoint
 			
 			# --- Update Settling State ---
-			potentiometerValue = self.ReadPotentiometerValue(self.knobNumber)
-			self.SetHasSettled(potentiometerValue)
+			# First make sure the setpoint hasn't changed
+			if (self.pid.setpoint != self.lastSetpoint):
+				# Different setpoint, reset error bounds
+				self.currentErrorMagnitude = self.errorMagnitude
+			# 
+
+			# Update based on last known potentiometer value, as it hasn't changed
+			# since then
+			self.UpdateHasSettled()
 			
 			# --- Preparing to Calculate Overshoot ---
 			# Reset last known overshoot
 			self.overshoot = 0
 
 			# Recording starting position so overshoot can be calculated
-			self.startingPosition = potentiometerValue
+			self.startingPosition = self.lastSetpoint
 			
 			# System is rising it is currently at a value below the setpoint
-			self.rising = (potentiometerValue < self.pid.setpoint)
+			self.rising = (self.startingPosition < self.pid.setpoint)
 			
 			# --- Update Complete, Peparing to Move ---
+			# System has been updated, but that also means it hasn't officially exited yet
 			self.updated = True
+			self.settledAndTerminated = False
 
 			if printDebugValues:
 				print(f"Moving {self.knobNumber} to: {self.pid.setpoint} from {self.startingPosition}. Rising?: {self.rising}")
@@ -530,12 +554,12 @@ class KnobController:
 				self.Update()
 				time.sleep(self.samplingTime)
 			# 
-		elif (not self.GetHasSettled() and (self.endTime is None)):
+		elif (not self.GetHasSettled()):
 			# For parallel operation
 			self.Update()
 		# 
 
-		# Has the system settled before?
+		# Is the system settled and has it officially exited yet?
 		if (self.GetHasSettled() and not self.settledAndTerminated):
 			# Time to stop
 			servoHat.move_servo_position(self.knobNumber, 180)
@@ -556,7 +580,9 @@ class KnobController:
 			print(f"Current Error: {self.errorDelta:6.2f}")
 			print(f"Log: {self.log}")
 
+			# System has officially exited, but this means it is not longer updated
 			self.settledAndTerminated = True
+			self.updated = False
 		# 
 	# 
 
@@ -564,6 +590,7 @@ class KnobController:
 		"""
 		Updates the controller by one time step
 		"""
+		print(f"#{self.knobNumber} is updating")
 		# --- Manage Loop Count and Prevent Overflow ---
 		if (self.count > self.resetCountAt):
 			self.count = 0
@@ -641,10 +668,6 @@ class KnobController:
 			# 
 		# 
 		
-		# --- Delay ---
-		# So the pi doesn't over-work itself
-		# time.sleep(self.samplingTime)
-
 		# --- Record for Next Iteration ---
 		# Track Setpoints
 		self.lastSetpoint = self.pid.setpoint		
