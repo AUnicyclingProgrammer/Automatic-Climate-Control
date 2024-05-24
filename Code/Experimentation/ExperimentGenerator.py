@@ -44,11 +44,26 @@ def ConvertPairsIntoPoints(transitionParis):
 	return pointList
 # 
 
-def OptimizationPass(distance_matrix, x0 = None, option = 1):
+def OptimizationPass(distance_matrix, x0 = None, option = 1, percentageRemaining = 0):
 
 	print("")
+	print(f"X0: {x0}")
 	if option == 1:
-		permutation, distance = solve_tsp_simulated_annealing(distance_matrix, x0=x0)
+		# This is the best option by far, nothing else improves as much in the same amount of time
+		maxAlpha = 0.9
+		minAlpha = 0.1
+
+		alphaBlending = maxAlpha - minAlpha
+
+		# alpha = minAlpha + percentageRemaining*alphaBlending
+
+		percentReduction = (1 - percentageRemaining*percentageRemaining)
+
+		alpha = maxAlpha - alphaBlending*percentReduction
+
+		print(f"Alpha: {alpha} | %: {percentageRemaining} | %R: {percentReduction}")
+
+		permutation, distance = solve_tsp_simulated_annealing(distance_matrix, x0=x0, alpha=alpha)
 		
 		print("$ : Simulated Annnealing Solution:")
 		print(f"Dist: {distance} | Permutation: {permutation}")
@@ -69,8 +84,8 @@ def OptimizationPass(distance_matrix, x0 = None, option = 1):
 		
 		print("R2R : Record to Record Solution:")
 		print(f"Dist: {distance} | Permutation: {permutation}")
-	
 	# 
+
 	print("")
 	return permutation, distance
 # 
@@ -204,23 +219,33 @@ if __name__ == "__main__":
 	distance_matrix = np.array(transitionGraph)
 
 	bestDistance = maxValue
+	previousBestDistance = maxValue
 	permutation = None
-	lastPermutation = "tempValue"
-
-	permutation, distance = OptimizationPass(distance_matrix, x0=permutation, option = 1)
+	bestPermutation = None
 	
-	for i in range(0, 5):
+	numberOfCycles = 5
+	for i in range(0, numberOfCycles):
 		print(f"\t\t Pass # {i}")
 		
-		permutation, distance = OptimizationPass(distance_matrix, x0=permutation, option = 2)
+		# permutation, distance = OptimizationPass(distance_matrix, x0=permutation, percentageRemaining = (numberOfCycles - i)/(numberOfCycles))
+		permutation, distance = OptimizationPass(distance_matrix, x0=bestPermutation, percentageRemaining = (numberOfCycles - i)/(numberOfCycles))
 
-		if (distance > bestDistance) or (permutation == lastPermutation):
-			break
+		# if (distance > bestDistance):
+		# 	break
 		# 
 
 		bestDistance = min(distance, bestDistance)
-		lastPermutation == permutation
+
+		# If a better result was found save the new permutation
+		if bestDistance < previousBestDistance:
+			bestPermutation = permutation
+			bestResult = (bestDistance, bestPermutation)
+		# 
+		
+		previousBestDistance = bestDistance
 	# 
+
+	distance, permutation = bestResult
 
 	# --- Converting Back to Point List ---
 	optimalTransitions = [transitionList[index] for index in permutation]
