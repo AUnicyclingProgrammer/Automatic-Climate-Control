@@ -825,28 +825,28 @@ if __name__ == "__main__":
 	# paddedNumber = 3
 	# centerNumber = 4
 	
-	outerNumber = 2
-	paddedNumber = 3
-	centerNumber = 4
+	# outerNumber = 2
+	# paddedNumber = 3
+	# centerNumber = 4
 	
-	outerRegion = list(np.linspace(closestToEdge, outerThreshold, outerNumber, endpoint = False))
-	paddingRegion = list(np.linspace(outerThreshold, innerThreshold, paddedNumber, endpoint = False))
-	centralRegion = list(np.linspace(innerThreshold, maxValue - innerThreshold, centerNumber))
+	# outerRegion = list(np.linspace(closestToEdge, outerThreshold, outerNumber, endpoint = False))
+	# paddingRegion = list(np.linspace(outerThreshold, innerThreshold, paddedNumber, endpoint = False))
+	# centralRegion = list(np.linspace(innerThreshold, maxValue - innerThreshold, centerNumber))
 
-	firstPart = [round(point) for point in outerRegion + paddingRegion]
-	centerPart = [round(point) for point in centralRegion]
-	lastPart = [255 - point for point in firstPart]
-	lastPart.reverse()
-	experimentList = firstPart + centerPart + lastPart
+	# firstPart = [round(point) for point in outerRegion + paddingRegion]
+	# centerPart = [round(point) for point in centralRegion]
+	# lastPart = [255 - point for point in firstPart]
+	# lastPart.reverse()
+	# experimentList = firstPart + centerPart + lastPart
 
 	print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-	print("EXPERIMENTAL POINTS!!!")
-	print(f"#: {len(experimentList)} - {experimentList}")
+	# print("EXPERIMENTAL POINTS!!!")
+	# print(f"#: {len(experimentList)} - {experimentList}")
 
-	print("All permutations")
-	import itertools
-	permutations = list(itertools.permutations(experimentList, 2))
-	print(f"There are {len(permutations)} permutations: {permutations}")
+	# print("All permutations")
+	# import itertools
+	# permutations = list(itertools.permutations(experimentList, 2))
+	# print(f"There are {len(permutations)} permutations: {permutations}")
 
 	print("TODAY'S POINTS!!!")
 	print(setpointQueue)
@@ -866,13 +866,12 @@ if __name__ == "__main__":
 	time.sleep(2)
 
 	while True:
-		# randomSetpoint = random.randint(0 + 5, 255 - 5)
-		# setpoints = [randomSetpoint, 255 - randomSetpoint]
+		randomSetpoint = random.randint(0 + 5, 255 - 5)
+		setpoints = [randomSetpoint, 255 - randomSetpoint]
 
-		setpoint = setpointQueue[0]
-		setpointQueue.rotate(-1)
-
-		setpoints = [setpoint, setpoint]
+		# setpoint = setpointQueue[0]
+		# setpointQueue.rotate(-1)
+		# setpoints = [setpoint, setpoint]
 
 		print(f"# Go To: {setpoints}")
 
