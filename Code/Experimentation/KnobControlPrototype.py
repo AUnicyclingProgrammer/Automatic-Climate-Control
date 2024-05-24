@@ -250,7 +250,6 @@ class KnobController:
 		# Populate filters
 		for i in range(0, min(filterSize, settlingWindowSize)):
 			value = self.ReadPotentiometerValue(self.knobNumber)
-			# self.SetHasSettled(value)
 			self.UpdateHasSettled(value)
 		# 
 
@@ -386,53 +385,14 @@ class KnobController:
 	# 
 
 	# --- Settling ---
-	# def SetHasSettled(self, potentiometerValue, suppressFilterUpdate = False):
-	# 	"""
-	# 	Returns 1 if the system has settled, updates the float that indicates
-	# 	if the system has settled or not
 
-	# 	potentiometerValue : last value read from potentiometer
-	# 	suppressFilterUpdate : if True, will modify the settling condition without also
-	# 		incrementing the filter
-	# 	"""
+	def GetHasSettled(self):
+		"""
+		Returns self.hasSettled as a bool
+		"""
 		
-	# 	self.errorDelta = potentiometerValue - self.pid.setpoint
-	# 	isWithinTolerance = (abs(self.errorDelta) < self.currentErrorMagnitude)
-		
-	# 	# Don't always need to update the filter
-	# 	if not suppressFilterUpdate:
-	# 		self.hasSettled = self.settlingFilter(isWithinTolerance)
-	# 	# 
-
-	# 	if ((self.rising) and (self.errorDelta > 0)):
-	# 		# If the error is initially negative but becomes positive
-	# 		self.overshoot = max(self.overshoot, abs(self.errorDelta))
-	# 	elif ((not self.rising) and (self.errorDelta < 0)):
-	# 		# If the error is initially positive but becomes negative
-	# 		self.overshoot = max(self.overshoot, abs(self.errorDelta))
-	# 	#
-
-	# 	self.lastPotentiometerValue = potentiometerValue
-
-	# 	return self.hasSettled
-	# # 
-
-	# def UpdateHasSettled(self):
-	# 	"""
-	# 	Updates the settling state using the last known potentiometer value
-	# 	"""
-	# 	potentiometerValue = self.lastPotentiometerValue
-	# 	self.SetHasSettled(potentiometerValue)
-	# # 
-
-	# def GetHasSettled(self):
-	# 	"""
-	# 	Returns self.hasSettled as a bool
-	# 	"""
-		
-	# 	self.UpdateHasSettled()
-	# 	return bool(math.floor(self.hasSettled))
-	# # 
+		return self.hasSettled == 1
+	# 
 
 	def UpdateHasSettled(self, potentiometerValue = None):
 		"""
@@ -528,6 +488,7 @@ class KnobController:
 		
 		# If the setpoint has been manually changed then the class needs re-initialized
 		self.updated = False
+		self.terminatedCleanly = False
 	# 
 	
 	def __call__(self, setpoint, sequential = True, printDebugValues = True):
@@ -589,45 +550,23 @@ class KnobController:
 		# --- Moving to New Location ---
 		if (sequential):
 			# For sequential operation
-			while (not self.UpdateHasSettled()):
+			while (not self.GetHasSettled()):
 				self.Update()
 				time.sleep(self.samplingTime)
 			# 
 		else:
 			# Performing Parallel Operation
-			""" TODO: By this point in the code the update value should always be true
-			is it even worth checking? """
 			# Reasons why the system should update:
 			# * it is not in the right position
 			# * it has not properly exited
-			if (not self.UpdateHasSettled or not self.terminatedCleanly):
+			if (not self.GetHasSettled or not self.terminatedCleanly):
 				# Increment by one time step
 				self.Update()
 			# 
 		# 
-
-		# elif (not self.GetHasSettled() and not self.terminatedCleanly):
-		# elif (not self.terminatedCleanly):
-		# elif (not self.terminatedCleanly) or (not self.GetHasSettled()):
-		# 	# For parallel operation
-		# 	self.Update()
-		# # 
-
-		# Is the system settled and has it officially exited yet?
-		# if (self.GetHasSettled() and self.updated and not self.terminatedCleanly):
-		# if ((self.GetHasSettled() and self.updated) or self.newInstance):
-		# if ((self.GetHasSettled() and self.newInstance) \
-		# 	or (self.GetHasSettled() and self.updated and not self.terminatedCleanly)):
-		
-		# if ((self.GetHasSettled() and self.newInstance) \
-		# 	or (self.GetHasSettled() and self.updated) \
-		# 	or (self.GetHasSettled() and not self.terminatedCleanly)):
 		
 		# Is the system settled and has it officially exited yet?
-		print(f"Set: {self.UpdateHasSettled()} | Up: {self.updated} | Term: {self.terminatedCleanly}")
-		
-		
-		if (self.UpdateHasSettled() and not self.terminatedCleanly):
+		if (self.GetHasSettled() and not self.terminatedCleanly):
 			# Time to stop
 			servoHat.move_servo_position(self.knobNumber, 180)
 			
@@ -663,7 +602,6 @@ class KnobController:
 		"""
 		Updates the controller by one time step
 		"""
-		print(f"{self.knobNumber} is performing an update")
 		# --- Manage Looping Count ---
 		if (self.count > self.resetCountAt):
 			self.count = 0
@@ -691,11 +629,9 @@ class KnobController:
 		# - Update Servo Speed -
 		if (not hasSettled):
 			# Update Speed
-			print(f"{self.knobNumber} now moving at {newSpeed}")
 			servoHat.move_servo_position(self.knobNumber, newSpeed)
 		else:
 			# Turn off Servo
-			print(f"{self.knobNumber} has halted")
 			servoHat.move_servo_position(self.knobNumber, 180)
 			
 			# Relax error bounds
@@ -731,11 +667,10 @@ class KnobController:
 				# + f" Red:{speedReduction:4.1f} |" \
 				# + f" L:{speedLimit:5.2f} |" \
 				+ f" Spd:{newSpeed:5.2f} |" \
-				# + f" On Off:{self.onOffValue:5.1f} |"\
 				# + f" S:{servoStopped*100:3} |"\
 				+ f" S:{self.UpdateHasSettled()*100:3} |"\
 				+ f" P: {float(prevP):7.1f} I: {float(prevI):5.3f} D: {float(prevD):5.2f} |" \
-				# + f" Cnt: {int(self.count)}" \
+				# + f" Count: {int(self.count)}" \
 			)
 			# 
 		# 
@@ -761,10 +696,7 @@ class KnobSuite:
 		self.numberOfKnobs = numberOfKnobs
 		self.knobs: List[KnobController] = []
 		self.settledKnobs: List[bool] = []
-		
-		# self.knobs = []
-		# self.settledKnobs = []
-		
+				
 		# - Creating Suite of Knobs -
 		for number in range(0, numberOfKnobs):
 			knobController = KnobController(number, **kwargs)
@@ -789,7 +721,7 @@ class KnobSuite:
 		hasTerminatedCleanly = knobController.terminatedCleanly
 		condition = hasTerminatedCleanly and hasSettled
 
-		return bool(condition)
+		return condition
 	# 
 
 	def __call__(self, setpointList, sequential = True, printDebugValues = True):
@@ -808,7 +740,6 @@ class KnobSuite:
 				knobController = self.knobs[number]
 				print(f"Num: {number} | Setpoint: {setpoint} | Sequential? : {sequential} |" \
 					+ f" Settled: {knobController.UpdateHasSettled()} |" \
-					# + f" Settled: {self.settledKnobs[number]} |" \
 					+ f" Terminated?: {knobController.terminatedCleanly} |" \
 					+ f" Last Setpoint: {knobController.lastSetpoint}"
 				)
@@ -826,15 +757,9 @@ class KnobSuite:
 			knobController.UpdateSetpoint(setpoint)
 
 			# Update Settled Status
-			# self.settledKnobs[number] = knobController.GetHasSettled()
-			# self.settledKnobs[number] = (knobController.GetHasSettled() \
-			# 			and knobController.terminatedCleanly)
-			# self.settledKnobs[number] = knobController.terminatedCleanly
 			self.settledKnobs[number] = self.HasControllerSettled(knobController)
 
-			print(f"{number}: Updated Settling State: {self.settledKnobs[number]}")
-
-			# Save Knob Instance
+			# Save Knob Instance (Technically Unecessary)
 			self.knobs[number] = knobController
 		# 
 		
@@ -844,20 +769,13 @@ class KnobSuite:
 			for number in range(0, self.numberOfKnobs):
 				# Get Knob Controller
 				knobController = self.knobs[number]
-				# setpoint = setpointList[number]
 				
 				# Update Knob (if not settled)
-				# if (not knobController.GetHasSettled()):
-				# 	knobController(setpoint, sequential=sequential)
-				# # 
 				if (not self.settledKnobs[number]):
 					knobController(setpoint, sequential=sequential)
 				# 
 
 				# Has it settled
-				# self.settledKnobs[number] = knobController.GetHasSettled()
-				# self.settledKnobs[number] = (knobController.GetHasSettled() \
-				# 		and knobController.terminatedCleanly)
 				self.settledKnobs[number] = self.HasControllerSettled(knobController)
 
 				# Add delay if processing all knobs in parallel
@@ -865,15 +783,10 @@ class KnobSuite:
 					time.sleep(self.samplingTime)	
 				# 
 
-				# Save Knob Instance
+				# Save Knob Instance (Technically Unecessary)
 				self.knobs[number] = knobController
 			# 
-
-			# if printDebugValues:
-			# 	print(f"Settled Knobs: {self.settledKnobs}")
-			# # 
 		# 
-
 	# 
 # 
 
@@ -893,9 +806,10 @@ if __name__ == "__main__":
 
 	while True:
 		randomSetpoint = random.randint(0 + 5, 255 - 5)
-		print(f"# Go To: {randomSetpoint}")
 
 		setpoints = list(randomSetpoint*np.ones(knobSuite.numberOfKnobs, dtype = float))
+		# setpoints = [randomSetpoint, 255 - randomSetpoint]
+		# print(f"# Go To: {setpoints}")
 
 		# knobSuite(setpoints, sequential = True)
 		knobSuite(setpoints, sequential = False)
