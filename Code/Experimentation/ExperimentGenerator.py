@@ -12,70 +12,6 @@ from typing import List
 
 # ----- Methods and Functions -----
 
-# implementation of traveling Salesman Problem 
-def travellingSalesmanProblem(graph, startVertex, numVerticies): 
-	"""
-	This solver was originally taken from here: https://www.geeksforgeeks.org/traveling-salesman-problem-tsp-implementation/
-
-	I have modified it a bit
-	"""
-
-	# Python3 program to implement traveling salesman 
-	# problem using naive approach. 
-	from sys import maxsize 
-
-	# Store all verticies apart from source vertex
-	vertex = [] 
-	for i in range(numVerticies):
-		if i != startVertex: 
-			vertex.append(i) 
-
-	# Store minimum weight Hamiltonian Cycle 
-	# Set the minimum path weight to the largest number we can store
-	minimumPathWeight = maxsize
-	minimumPath = []
-	
-	nextPermutation=itertools.permutations(vertex)
-	for i in nextPermutation:
-
-		# Store Current Path Weight (cost) and Current Path
-		currentPathWeight = 0
-		currentPath = []
-
-		# Compute Current Path Weight
-		k = startVertex
-		currentPath.append(k)
-		for j in i: 
-			# Test the next node in the graph
-			currentPathWeight += graph[k][j]
-			k = j 
-			currentPath.append(k)
-
-			# Give up if this path is more expensive
-			worseThanCurrentBest = (currentPathWeight > minimumPathWeight)
-			if worseThanCurrentBest:
-				print("This is a terrible option:")
-				print(f"Cost: {currentPathWeight} | Path: {currentPath}")
-				break
-		#
-		currentPathWeight += graph[k][startVertex]
-		currentPath.append(startVertex)
-
-		# - Update Best Path -
-		# Update Weight
-		minimumPathWeight = min(minimumPathWeight, currentPathWeight)
-
-		# Update Path
-		if (currentPathWeight == minimumPathWeight):
-			minimumPath = currentPath
-
-			print(f"This option is better:")
-			print(f"Cost: {currentPathWeight} | Path: {currentPath}")
-		# 
-		
-	return minimumPathWeight, minimumPath
-
-
 # ----- Utility Classes -----
 
 # ----- Begin Program -----
@@ -155,7 +91,7 @@ if __name__ == "__main__":
 	# Graph costs
 	transitionNotRequiredCost = 0
 	transitionRequiredCost = 1
-	identityCost = 0
+	identityCost = 1
 
 	# Computing Weight Matrix
 	transitionGraph =np.zeros((numberOfTransitions, numberOfTransitions)).tolist()
@@ -167,7 +103,7 @@ if __name__ == "__main__":
 		for j in range(0, numberOfTransitions):
 			x2, y2 = transitionList[j]
 
-			print(f"Transition: {permutationCount:5} | From ({x1:3},{y1:3}) to ({x2:3},{y2:3})", end = "")
+			# print(f"Transition: {permutationCount:5} | From ({x1:3},{y1:3}) to ({x2:3},{y2:3})", end = "")
 			permutationCount += 1
 
 			isIdentity = (x1 == x2) and (y1 == y2)
@@ -180,25 +116,41 @@ if __name__ == "__main__":
 			else:
 				transitionCost = transitionRequiredCost
 			# 
-			print(f" | Cost: {transitionCost}")
+			# print(f" | Cost: {transitionCost}")
 
 			transitionGraph[i][j] = transitionCost
 		# 
 	# 
 
-	print("Cost Graph:")
-	print(transitionGraph)
+	print(f"There are {permutationCount} elements in the cost graph.")
 
-	# Example Problem
-	# V = 4
-	# graph = [[0, 10, 15, 20], [10, 0, 35, 25], 
-	# 		[15, 35, 0, 30], [20, 25, 30, 0]] 
-	# s = 0
-	# print(travellingSalesmanProblem(graph, s, V))
+	# print("Cost Graph:")
+	# print(transitionGraph)
 
-	# start = 0
+	# --- Example Problem ---
+	from python_tsp.heuristics import solve_tsp_local_search, solve_tsp_simulated_annealing
 
-	# cost, path = travellingSalesmanProblem(transitionGraph, start, numberOfTransitions)
-	# print(f"Cost: {cost}")
-	# print(f"Path: {path}")
+	# distance_matrix = np.array([
+	# 	[0,  5, 4, 10],
+	# 	[5,  0, 8,  5],
+	# 	[4,  8, 0,  3],
+	# 	[10, 5, 3,  0]
+	# ])
+	# permutation, distance = solve_tsp_local_search(distance_matrix)
+
+	# --- My Problem ---
+	# Converting the graph into a numpy array
+	distance_matrix = np.array(transitionGraph)
+
+	permutation, distance = solve_tsp_simulated_annealing(distance_matrix)
+	
+	print("Simulated Annnealing")
+	print(f"Dist: {distance} | Permutation: {permutation}")
+
+	permutation2, distance2 = solve_tsp_local_search(
+		distance_matrix, x0=permutation, perturbation_scheme="ps3"
+	)
+
+	print("Final Results")
+	print(f"Dist: {distance2} | Permutation: {permutation2}")
 # 
