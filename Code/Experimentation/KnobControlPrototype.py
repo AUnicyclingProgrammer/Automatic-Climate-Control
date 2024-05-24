@@ -767,8 +767,9 @@ class KnobSuite:
 		# --- Move to Setpoints ---
 		while (not np.all(self.settledKnobs)):
 			for number in range(0, self.numberOfKnobs):
-				# Get Knob Controller
+				# Get Knob Controller and Setpoint
 				knobController = self.knobs[number]
+				setpoint = setpointList[number]
 				
 				# Update Knob (if not settled)
 				if (not self.settledKnobs[number]):
@@ -807,9 +808,9 @@ if __name__ == "__main__":
 	while True:
 		randomSetpoint = random.randint(0 + 5, 255 - 5)
 
-		setpoints = list(randomSetpoint*np.ones(knobSuite.numberOfKnobs, dtype = float))
-		# setpoints = [randomSetpoint, 255 - randomSetpoint]
-		# print(f"# Go To: {setpoints}")
+		# setpoints = list(randomSetpoint*np.ones(knobSuite.numberOfKnobs, dtype = float))
+		setpoints = [randomSetpoint, 255 - randomSetpoint]
+		print(f"# Go To: {setpoints}")
 
 		# knobSuite(setpoints, sequential = True)
 		knobSuite(setpoints, sequential = False)
