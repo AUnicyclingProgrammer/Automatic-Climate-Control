@@ -54,20 +54,23 @@ def travellingSalesmanProblem(graph, startVertex, numVerticies):
 			# Give up if this path is more expensive
 			worseThanCurrentBest = (currentPathWeight > minimumPathWeight)
 			if worseThanCurrentBest:
-				print("This is a terrible option")
+				print("This is a terrible option:")
 				print(f"Cost: {currentPathWeight} | Path: {currentPath}")
 				break
 		#
-		currentPathWeight += graph[k][s]
-		currentPath.append(s)
+		currentPathWeight += graph[k][startVertex]
+		currentPath.append(startVertex)
 
-		# Update Best Path
+		# - Update Best Path -
 		# Update Weight
 		minimumPathWeight = min(minimumPathWeight, currentPathWeight)
 
 		# Update Path
 		if (currentPathWeight == minimumPathWeight):
 			minimumPath = currentPath
+
+			print(f"This option is better:")
+			print(f"Cost: {currentPathWeight} | Path: {currentPath}")
 		# 
 		
 	return minimumPathWeight, minimumPath
@@ -135,22 +138,67 @@ if __name__ == "__main__":
 	print(f"#:{len(experimentList)} - {experimentList}")
 
 	print("All Required Transitions")
-	transitions = list(itertools.permutations(experimentList, 2))
-	print(f"There are {len(transitions)} transitions: {transitions}")
+	transitionList = list(itertools.permutations(experimentList, 2))
+	numberOfTransitions = len(transitionList)
+	print(f"There are {numberOfTransitions} transitionList: {transitionList}")
 
 	# --- Creating TSP Problem ---
-	# Computing Weight Matrix
-	graph = list()
+	# Translate pairs into indicies to simplify problem formulation
+	# verticies = []
+	# for i in range(0, numberOfTransitions):
+	# 	verticies.append(i)
+	# # 
 
-	# for pair in transitions:
-	# 	x, y = pair
+	# print("Verticies to Visit (Transitions)")
+	# print(f"#:{len(verticies)} - {verticies}")
+
+	# Graph costs
+	transitionNotRequiredCost = 0
+	transitionRequiredCost = 1
+	identityCost = 0
+
+	# Computing Weight Matrix
+	transitionGraph =np.zeros((numberOfTransitions, numberOfTransitions)).tolist()
+
+	permutationCount = 0
+	for i in range(0, numberOfTransitions):
+		x1, y1 = transitionList[i]
 		
+		for j in range(0, numberOfTransitions):
+			x2, y2 = transitionList[j]
+
+			print(f"Transition: {permutationCount:5} | From ({x1:3},{y1:3}) to ({x2:3},{y2:3})", end = "")
+			permutationCount += 1
+
+			isIdentity = (x1 == x2) and (y1 == y2)
+			noTransitionRequired = (x1 == x2) or (y1 == y2)
+
+			if isIdentity:
+				transitionCost = identityCost
+			elif noTransitionRequired:
+				transitionCost = transitionNotRequiredCost
+			else:
+				transitionCost = transitionRequiredCost
+			# 
+			print(f" | Cost: {transitionCost}")
+
+			transitionGraph[i][j] = transitionCost
+		# 
 	# 
 
-	# matrix representation of graph 
-	V = 4
-	graph = [[0, 10, 15, 20], [10, 0, 35, 25], 
-			[15, 35, 0, 30], [20, 25, 30, 0]] 
-	s = 0
-	print(travellingSalesmanProblem(graph, s, V))
+	print("Cost Graph:")
+	print(transitionGraph)
+
+	# Example Problem
+	# V = 4
+	# graph = [[0, 10, 15, 20], [10, 0, 35, 25], 
+	# 		[15, 35, 0, 30], [20, 25, 30, 0]] 
+	# s = 0
+	# print(travellingSalesmanProblem(graph, s, V))
+
+	# start = 0
+
+	# cost, path = travellingSalesmanProblem(transitionGraph, start, numberOfTransitions)
+	# print(f"Cost: {cost}")
+	# print(f"Path: {path}")
 # 
