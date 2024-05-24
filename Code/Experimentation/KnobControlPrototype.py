@@ -491,7 +491,7 @@ class KnobController:
 		self.terminatedCleanly = False
 	# 
 	
-	def __call__(self, setpoint, sequential = True, printDebugValues = True):
+	def __call__(self, setpoint, sequential = False, printDebugValues = True):
 		"""
 		Move knob to next location
 
@@ -662,14 +662,14 @@ class KnobController:
 				+ f" Δ: {self.errorDelta:6.1f} |" \
 				+ f" O: {self.overshoot:4.1f}" \
 				+ f" Set?: {self.hasSettled:6.4f} |" \
-				+ f" Lim: ({self.pid.output_limits[0]:5.2f}, {self.pid.output_limits[1]:5.2f}) |" \
+				# + f" Lim: ({self.pid.output_limits[0]:5.2f}, {self.pid.output_limits[1]:5.2f}) |" \
 				# + f" %:{percentageOfPaddingRemaining:4.2f} |" \
 				# + f" Red:{speedReduction:4.1f} |" \
 				# + f" L:{speedLimit:5.2f} |" \
-				+ f" Spd:{newSpeed:5.2f} |" \
+				# + f" Spd:{newSpeed:5.2f} |" \
 				# + f" S:{servoStopped*100:3} |"\
-				+ f" S:{self.UpdateHasSettled()*100:3} |"\
-				+ f" P: {float(prevP):7.1f} I: {float(prevI):5.3f} D: {float(prevD):5.2f} |" \
+				# + f" S:{self.UpdateHasSettled()*100:3} |"\
+				+ f" P: {float(prevP):7.1f} I: {float(prevI):5.3f} D: {float(prevD):6.2f} |" \
 				# + f" Count: {int(self.count)}" \
 			)
 			# 
@@ -796,9 +796,69 @@ class KnobSuite:
 if __name__ == "__main__":
 	# knobSuite = KnobSuite(2, speedMagnitude=15)
 	knobSuite = KnobSuite(2)
+
+	# setpointQueue = deque([50, 200, 200, 50])
+	setpointQueue = deque([50, 200, 100, 150])
+	# setpointQueue = deque([25, 225])
+	# setpointQueue = deque([50, 200, 25, 225])
+	# setpointQueue = deque([50, 200, 40, 210, 30, 220, 25, 225, 20, 230])
+	# setpointQueue = deque([30, 225, 25, 230, 20, 235, 15, 240, 10, 245])
+	# setpointQueue = deque([15, 240, 10, 245])
+	# setpointQueue = deque([15, 240, 10, 245, 8, 247, 5, 250])
+	# setpointQueue = deque([10, 8, 5])
+	# setpointQueue = deque([5, 250])
+	# setpointQueue = deque([5, 250, 127])
+	# setpointQueue = deque([50, 205, 30, 225, 100, 155, 10, 245])
+	# setpointQueue = deque([125, 127, 130])
+
+	# Point for the Experiment
+	minValue = 0
+	maxValue = 255
+
+	closestToEdge = 5
+	outerThreshold = 20
+	innerThreshold = 40
+	centerPoint = 127
+
+	# 240 Permutations
+	# outerNumber = 3
+	# paddedNumber = 3
+	# centerNumber = 4
+	
+	outerNumber = 2
+	paddedNumber = 3
+	centerNumber = 4
+	
+	outerRegion = list(np.linspace(closestToEdge, outerThreshold, outerNumber, endpoint = False))
+	paddingRegion = list(np.linspace(outerThreshold, innerThreshold, paddedNumber, endpoint = False))
+	centralRegion = list(np.linspace(innerThreshold, maxValue - innerThreshold, centerNumber))
+
+	firstPart = [round(point) for point in outerRegion + paddingRegion]
+	centerPart = [round(point) for point in centralRegion]
+	lastPart = [255 - point for point in firstPart]
+	lastPart.reverse()
+	experimentList = firstPart + centerPart + lastPart
+
+	print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+	print("EXPERIMENTAL POINTS!!!")
+	print(f"#: {len(experimentList)} - {experimentList}")
+
+	print("All permutations")
+	import itertools
+	permutations = list(itertools.permutations(experimentList, 2))
+	print(f"There are {len(permutations)} permutations: {permutations}")
+
+	print("TODAY'S POINTS!!!")
+	print(setpointQueue)
+	print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 	
 	# knobSuite([127, 127], sequential = True)
 	knobSuite([127, 127], sequential = False)
+
+	
+	# Move to first location in experiment
+	# startingLocation = experimentList[0]
+	# knobSuite([startingLocation, startingLocation], sequential = False)
 	
 	if (ReadPotentiometer(2) > 127):
 		exit()
@@ -806,10 +866,14 @@ if __name__ == "__main__":
 	time.sleep(2)
 
 	while True:
-		randomSetpoint = random.randint(0 + 5, 255 - 5)
+		# randomSetpoint = random.randint(0 + 5, 255 - 5)
+		# setpoints = [randomSetpoint, 255 - randomSetpoint]
 
-		# setpoints = list(randomSetpoint*np.ones(knobSuite.numberOfKnobs, dtype = float))
-		setpoints = [randomSetpoint, 255 - randomSetpoint]
+		setpoint = setpointQueue[0]
+		setpointQueue.rotate(-1)
+
+		setpoints = [setpoint, setpoint]
+
 		print(f"# Go To: {setpoints}")
 
 		# knobSuite(setpoints, sequential = True)
