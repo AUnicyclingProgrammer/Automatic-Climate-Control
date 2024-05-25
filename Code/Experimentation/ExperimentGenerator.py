@@ -6,7 +6,7 @@ import numpy as np
 import random
 import itertools
 
-# Reability
+# Readability
 import time
 from typing import List
 
@@ -45,25 +45,37 @@ def ConvertPairsIntoPoints(transitionParis):
 	return pointList
 # 
 
-def OptimizationPass(distance_matrix, x0 = None):
+def OptimizationPass(distance_matrix, x0 = None, exact = False):
 
 	print("")
 	# print(f"X0: {x0}")
 
-	permutation, distance = solve_tsp_simulated_annealing(distance_matrix, x0=x0)
-	
-	print("$ : Simulated Annnealing Solution:")
-	print(f"Dist: {distance} | Permutation: {permutation}")
+	if not exact:
+		permutation, distance = solve_tsp_simulated_annealing(distance_matrix, x0=x0)
+		
+		print("$ : Simulated Annealing Solution:")
+		print(f"Dist: {distance} | Permutation: {permutation}")
 
-	permutation, distance = solve_tsp_local_search(
-		distance_matrix, x0=permutation, perturbation_scheme="ps3"
-	)
-	# permutation, distance = solve_tsp_local_search(
-	# 	distance_matrix, x0=permutation, perturbation_scheme="ps6"
-	# )
+		permutation, distance = solve_tsp_local_search(
+			distance_matrix, x0=permutation, perturbation_scheme="ps4"
+		)
+		# permutation, distance = solve_tsp_local_search(
+		# 	distance_matrix, x0=permutation, perturbation_scheme="ps6"
+		# )
 
-	print("Ξ Local Search Solution:")
-	print(f"Dist: {distance} | Permutation: {permutation}")
+		print("Ξ : Local Search Solution:")
+		print(f"Dist: {distance} | Permutation: {permutation}")
+	else:
+		# The pi isn't able to compute the exact solution, this needs to be done on a much
+		# more powerful machine.
+		from python_tsp.exact import solve_tsp_branch_and_bound, solve_tsp_dynamic_programming
+
+		# permutation, distance = solve_tsp_branch_and_bound(distance_matrix)
+		permutation, distance = solve_tsp_dynamic_programming(distance_matrix)
+
+		print("B&B : Branch and Bound Solution:")
+		print(f"Dist: {distance} | Permutation: {permutation}")
+	# 
 
 	print("")
 	return permutation, distance
@@ -94,7 +106,7 @@ if __name__ == "__main__":
 	# paddedNumber = 3
 	# centerNumber = 4
 	
-	# Prefered for Experiment
+	# Preferred for Experiment
 	# 182 Transitions Required
 	outerNumber = 2
 	paddedNumber = 3
@@ -113,7 +125,7 @@ if __name__ == "__main__":
 	# centerNumber = 1
 	
 	
-	# --- Complining Testing Points ---
+	# --- Compiling Testing Points ---
 	outerRegion = list(np.linspace(closestToEdge, outerThreshold, outerNumber, endpoint = False))
 	paddingRegion = list(np.linspace(outerThreshold, innerThreshold, paddedNumber, endpoint = False))
 	centralRegion = list(np.linspace(innerThreshold, maxValue - innerThreshold, centerNumber))
@@ -194,14 +206,14 @@ if __name__ == "__main__":
 	permutation = None
 	bestPermutation = None
 	
-	numberOfCycles = 10
+	numberOfCycles = 1
 	for i in range(0, numberOfCycles):
 		print(f"\t\t Pass # {i}")
 		
 		permutation, distance = OptimizationPass(distance_matrix)
 
-		# if (distance > bestDistance):
-		# 	break
+		if (distance > bestDistance):
+			break
 		# 
 
 		bestDistance = min(distance, bestDistance)
