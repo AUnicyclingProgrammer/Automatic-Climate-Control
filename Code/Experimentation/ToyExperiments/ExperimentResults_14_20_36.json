@@ -1,0 +1,384 @@
+{
+    "knob0": [
+        {
+            "channel": 0,
+            "startSetpoint": 5,
+            "endSetpoint": 5,
+            "time": 0.008839247006108053,
+            "overshoot": 0,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 5,
+            "endSetpoint": 20,
+            "time": 5.141984336994938,
+            "overshoot": 28.4,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 20,
+            "endSetpoint": 250,
+            "time": 6.086825581005542,
+            "overshoot": 5.0,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 250,
+            "endSetpoint": 40,
+            "time": 4.631408258006559,
+            "overshoot": 37.666666666666664,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 40,
+            "endSetpoint": 20,
+            "time": 3.953931855998235,
+            "overshoot": 16.933333333333334,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 20,
+            "endSetpoint": 40,
+            "time": 5.483758004993433,
+            "overshoot": 46.33333333333333,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 40,
+            "endSetpoint": 235,
+            "time": 4.180473937987699,
+            "overshoot": 19.400000000000006,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 235,
+            "endSetpoint": 40,
+            "time": 2.7700616700021783,
+            "overshoot": 36.93333333333333,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 40,
+            "endSetpoint": 5,
+            "time": 5.892765946002328,
+            "overshoot": 5.0,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 5,
+            "endSetpoint": 235,
+            "time": 4.147090703001595,
+            "overshoot": 19.333333333333343,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 235,
+            "endSetpoint": 5,
+            "time": 6.425002737989416,
+            "overshoot": 5.0,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 5,
+            "endSetpoint": 40,
+            "time": 5.753104887990048,
+            "overshoot": 62.400000000000006,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 40,
+            "endSetpoint": 250,
+            "time": 5.683131457000854,
+            "overshoot": 5.0,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 250,
+            "endSetpoint": 5,
+            "time": 6.186065732996212,
+            "overshoot": 5.0,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 5,
+            "endSetpoint": 250,
+            "time": 5.680354586002068,
+            "overshoot": 5.0,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 250,
+            "endSetpoint": 20,
+            "time": 5.34663300900138,
+            "overshoot": 19.6,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 20,
+            "endSetpoint": 235,
+            "time": 4.759439187007956,
+            "overshoot": 19.599999999999994,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 235,
+            "endSetpoint": 250,
+            "time": 6.670722097012913,
+            "overshoot": 3.1999999999999886,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 250,
+            "endSetpoint": 235,
+            "time": 4.7258789030020125,
+            "overshoot": 30.333333333333343,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 235,
+            "endSetpoint": 20,
+            "time": 4.38071558700176,
+            "overshoot": 19.533333333333335,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 0,
+            "startSetpoint": 20,
+            "endSetpoint": 5,
+            "time": 6.011936702008825,
+            "overshoot": 5.0,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        }
+    ],
+    "knob1": [
+        {
+            "channel": 1,
+            "startSetpoint": 5,
+            "endSetpoint": 5,
+            "time": 0.008813413995085284,
+            "overshoot": 0,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 5,
+            "endSetpoint": 20,
+            "time": 4.687881484991522,
+            "overshoot": 25.0,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 20,
+            "endSetpoint": 250,
+            "time": 6.542664409003919,
+            "overshoot": 5.0,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 250,
+            "endSetpoint": 40,
+            "time": 2.8397901189891854,
+            "overshoot": 36.666666666666664,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 40,
+            "endSetpoint": 20,
+            "time": 4.337819355991087,
+            "overshoot": 17.2,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 20,
+            "endSetpoint": 40,
+            "time": 5.763187971999287,
+            "overshoot": 35.66666666666667,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 40,
+            "endSetpoint": 235,
+            "time": 4.36520442199253,
+            "overshoot": 19.73333333333332,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 235,
+            "endSetpoint": 40,
+            "time": 2.7458868399990024,
+            "overshoot": 36.333333333333336,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 40,
+            "endSetpoint": 5,
+            "time": 5.10785905100056,
+            "overshoot": 5.0,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 5,
+            "endSetpoint": 235,
+            "time": 4.74702659099421,
+            "overshoot": 19.80000000000001,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 235,
+            "endSetpoint": 5,
+            "time": 5.999278508999851,
+            "overshoot": 5.0,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 5,
+            "endSetpoint": 40,
+            "time": 6.35544986599416,
+            "overshoot": 67.6,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 40,
+            "endSetpoint": 250,
+            "time": 6.084012359002372,
+            "overshoot": 5.0,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 250,
+            "endSetpoint": 5,
+            "time": 5.6939997320005205,
+            "overshoot": 5.0,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 5,
+            "endSetpoint": 250,
+            "time": 6.540127710002707,
+            "overshoot": 5.0,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 250,
+            "endSetpoint": 20,
+            "time": 8.751413311008946,
+            "overshoot": 18.733333333333334,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 20,
+            "endSetpoint": 235,
+            "time": 4.898442692996468,
+            "overshoot": 19.80000000000001,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 235,
+            "endSetpoint": 250,
+            "time": 6.031401915010065,
+            "overshoot": 5.0,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 250,
+            "endSetpoint": 235,
+            "time": 4.590663825991214,
+            "overshoot": 36.53333333333333,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 235,
+            "endSetpoint": 20,
+            "time": 5.231512585989549,
+            "overshoot": 18.6,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        },
+        {
+            "channel": 1,
+            "startSetpoint": 20,
+            "endSetpoint": 5,
+            "time": 8.903047241998138,
+            "overshoot": 2.0,
+            "minSpeed": 17.0,
+            "maxSpeed": 81.0
+        }
+    ]
+}

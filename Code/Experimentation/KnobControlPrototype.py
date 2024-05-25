@@ -789,6 +789,24 @@ class KnobSuite:
 			# 
 		# 
 	# 
+
+	def GetLogs(self):
+		"""
+		Get the logs from each controller in the list of controllers
+		"""
+
+		logs = []
+
+		for number in range(0, self.numberOfKnobs):
+			knobController = self.knobs[number]
+			
+			# Get the log
+			logs.append(knobController.log)
+		# 
+
+		return logs
+
+	# 
 # 
 
 
@@ -797,57 +815,39 @@ if __name__ == "__main__":
 	# knobSuite = KnobSuite(2, speedMagnitude=15)
 	knobSuite = KnobSuite(2)
 
-	# setpointQueue = deque([50, 200, 200, 50])
-	setpointQueue = deque([50, 200, 100, 150])
-	# setpointQueue = deque([25, 225])
-	# setpointQueue = deque([50, 200, 25, 225])
-	# setpointQueue = deque([50, 200, 40, 210, 30, 220, 25, 225, 20, 230])
-	# setpointQueue = deque([30, 225, 25, 230, 20, 235, 15, 240, 10, 245])
-	# setpointQueue = deque([15, 240, 10, 245])
-	# setpointQueue = deque([15, 240, 10, 245, 8, 247, 5, 250])
-	# setpointQueue = deque([10, 8, 5])
-	# setpointQueue = deque([5, 250])
-	# setpointQueue = deque([5, 250, 127])
-	# setpointQueue = deque([50, 205, 30, 225, 100, 155, 10, 245])
-	# setpointQueue = deque([125, 127, 130])
+	conductExperiment = True
+	if not conductExperiment:
+		# setpointQueue = deque([50, 200, 200, 50])
+		setpointQueue = deque([50, 200, 100, 150])
+		# setpointQueue = deque([25, 225])
+		# setpointQueue = deque([50, 200, 25, 225])
+		# setpointQueue = deque([50, 200, 40, 210, 30, 220, 25, 225, 20, 230])
+		# setpointQueue = deque([30, 225, 25, 230, 20, 235, 15, 240, 10, 245])
+		# setpointQueue = deque([15, 240, 10, 245])
+		# setpointQueue = deque([15, 240, 10, 245, 8, 247, 5, 250])
+		# setpointQueue = deque([10, 8, 5])
+		# setpointQueue = deque([5, 250])
+		# setpointQueue = deque([5, 250, 127])
+		# setpointQueue = deque([50, 205, 30, 225, 100, 155, 10, 245])
+		# setpointQueue = deque([125, 127, 130])
+	else:
+		import json
 
-	# Point for the Experiment
-	minValue = 0
-	maxValue = 255
+		# fileName = "ServoExperimentPoints.json"
+		fileName = "ServoExperimentPoints_0.json"
+		
+		experimentDictionary = dict()
 
-	closestToEdge = 5
-	outerThreshold = 20
-	innerThreshold = 40
-	centerPoint = 127
-
-	# 240 Permutations
-	# outerNumber = 3
-	# paddedNumber = 3
-	# centerNumber = 4
+		jsonFile = open(fileName)
+		experimentDictionary = json.load(jsonFile)
+		jsonFile.close()
 	
-	# outerNumber = 2
-	# paddedNumber = 3
-	# centerNumber = 4
-	
-	# outerRegion = list(np.linspace(closestToEdge, outerThreshold, outerNumber, endpoint = False))
-	# paddingRegion = list(np.linspace(outerThreshold, innerThreshold, paddedNumber, endpoint = False))
-	# centralRegion = list(np.linspace(innerThreshold, maxValue - innerThreshold, centerNumber))
+		print(f"Loaded Experimental Data : {experimentDictionary}")
 
-	# firstPart = [round(point) for point in outerRegion + paddingRegion]
-	# centerPart = [round(point) for point in centralRegion]
-	# lastPart = [255 - point for point in firstPart]
-	# lastPart.reverse()
-	# experimentList = firstPart + centerPart + lastPart
+		setpointQueue = deque(experimentDictionary["pointList"])
+	# 
 
 	print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-	# print("EXPERIMENTAL POINTS!!!")
-	# print(f"#: {len(experimentList)} - {experimentList}")
-
-	# print("All permutations")
-	# import itertools
-	# permutations = list(itertools.permutations(experimentList, 2))
-	# print(f"There are {len(permutations)} permutations: {permutations}")
-
 	print("TODAY'S POINTS!!!")
 	print(setpointQueue)
 	print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
@@ -857,29 +857,69 @@ if __name__ == "__main__":
 
 	
 	# Move to first location in experiment
-	# startingLocation = experimentList[0]
-	# knobSuite([startingLocation, startingLocation], sequential = False)
+	startingLocation = setpointQueue[0]
+	knobSuite([startingLocation, startingLocation], sequential = False)
 	
 	if (ReadPotentiometer(2) > 127):
 		exit()
 	# 
 	time.sleep(2)
 
+	# Prepare for testing knobs
+	knob0Logs = []
+	knob1Logs = []
+
+	setpointNumber = 0
 	while True:
-		randomSetpoint = random.randint(0 + 5, 255 - 5)
-		setpoints = [randomSetpoint, 255 - randomSetpoint]
+		# randomSetpoint = random.randint(0 + 5, 255 - 5)
+		# setpoints = [randomSetpoint, 255 - randomSetpoint]
 
-		# setpoint = setpointQueue[0]
-		# setpointQueue.rotate(-1)
-		# setpoints = [setpoint, setpoint]
+		setpoint = setpointQueue[0]
+		setpointQueue.rotate(-1)
+		setpoints = [setpoint, setpoint]
 
-		print(f"# Go To: {setpoints}")
+		print(f"# Go To Location {setpointNumber} : {setpoints}")
 
 		# knobSuite(setpoints, sequential = True)
 		knobSuite(setpoints, sequential = False)
 
+		# Get and save logs
+		log0, log1 = knobSuite.GetLogs()
+		knob0Logs.append(log0)
+		knob1Logs.append(log1)
+
 		if (ReadPotentiometer(2) > 127):
 			break
 		time.sleep(2)
+
+		setpointNumber += 1
+
+		# Terminate if the experiment is over
+		if (setpointNumber == experimentDictionary["numberOfPoints"] and conductExperiment):
+			break
+		# 
+	# 
+
+	# Save the results
+	if conductExperiment:
+		# Initialization
+		currentTime = time.localtime()
+		currentTimeString = time.strftime("%H_%M_%S", currentTime)
+
+		resultsFilename = "ExperimentResults_" + currentTimeString + ".json"
+		print("Filename: "+ resultsFilename)
+
+		# Saving Results to Dictionary
+		resultsDictionary = dict()
+		resultsDictionary["knob0"] = knob0Logs
+		resultsDictionary["knob1"] = knob1Logs
+
+		# Saving Dictionary as JSON
+		with open(resultsFilename, 'w') as jsonFile:
+			json.dump(resultsDictionary, jsonFile)
+		# 
+		jsonFile.close()
+
+		print(f"Experimental Results Saved To: {resultsFilename}")
 	# 
 # 
