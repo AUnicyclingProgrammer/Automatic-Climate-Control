@@ -7,6 +7,7 @@ import random
 import itertools
 
 # Reability
+import time
 from typing import List
 
 
@@ -44,47 +45,25 @@ def ConvertPairsIntoPoints(transitionParis):
 	return pointList
 # 
 
-def OptimizationPass(distance_matrix, x0 = None, option = 1, percentageRemaining = 0):
+def OptimizationPass(distance_matrix, x0 = None):
 
 	print("")
-	print(f"X0: {x0}")
-	if option == 1:
-		# This is the best option by far, nothing else improves as much in the same amount of time
-		maxAlpha = 0.9
-		minAlpha = 0.1
+	# print(f"X0: {x0}")
 
-		alphaBlending = maxAlpha - minAlpha
+	permutation, distance = solve_tsp_simulated_annealing(distance_matrix, x0=x0)
+	
+	print("$ : Simulated Annnealing Solution:")
+	print(f"Dist: {distance} | Permutation: {permutation}")
 
-		# alpha = minAlpha + percentageRemaining*alphaBlending
+	permutation, distance = solve_tsp_local_search(
+		distance_matrix, x0=permutation, perturbation_scheme="ps3"
+	)
+	# permutation, distance = solve_tsp_local_search(
+	# 	distance_matrix, x0=permutation, perturbation_scheme="ps6"
+	# )
 
-		percentReduction = (1 - percentageRemaining*percentageRemaining)
-
-		alpha = maxAlpha - alphaBlending*percentReduction
-
-		print(f"Alpha: {alpha} | %: {percentageRemaining} | %R: {percentReduction}")
-
-		permutation, distance = solve_tsp_simulated_annealing(distance_matrix, x0=x0, alpha=alpha)
-		
-		print("$ : Simulated Annnealing Solution:")
-		print(f"Dist: {distance} | Permutation: {permutation}")
-
-		permutation, distance = solve_tsp_local_search(
-			distance_matrix, x0=permutation, perturbation_scheme="ps3"
-		)
-
-		print("Ξ Local Search Solution:")
-		print(f"Dist: {distance} | Permutation: {permutation}")
-	elif option ==2:
-		permutation, distance = solve_tsp_lin_kernighan(distance_matrix, x0=x0)
-		
-		print("LK : Lin Kernighan Solution:")
-		print(f"Dist: {distance} | Permutation: {permutation}")
-	else:
-		permutation, distance = solve_tsp_record_to_record(distance_matrix, x0=x0)
-		
-		print("R2R : Record to Record Solution:")
-		print(f"Dist: {distance} | Permutation: {permutation}")
-	# 
+	print("Ξ Local Search Solution:")
+	print(f"Dist: {distance} | Permutation: {permutation}")
 
 	print("")
 	return permutation, distance
@@ -95,19 +74,11 @@ def OptimizationPass(distance_matrix, x0 = None, option = 1, percentageRemaining
 # ----- Begin Program -----
 if __name__ == "__main__":
 
-	# setpointQueue = deque([50, 200, 200, 50])
-	setpointQueue = deque([50, 200, 100, 150])
-	# setpointQueue = deque([25, 225])
-	# setpointQueue = deque([50, 200, 25, 225])
-	# setpointQueue = deque([50, 200, 40, 210, 30, 220, 25, 225, 20, 230])
-	# setpointQueue = deque([30, 225, 25, 230, 20, 235, 15, 240, 10, 245])
-	# setpointQueue = deque([15, 240, 10, 245])
-	# setpointQueue = deque([15, 240, 10, 245, 8, 247, 5, 250])
-	# setpointQueue = deque([10, 8, 5])
-	# setpointQueue = deque([5, 250])
-	# setpointQueue = deque([5, 250, 127])
-	# setpointQueue = deque([50, 205, 30, 225, 100, 155, 10, 245])
-	# setpointQueue = deque([125, 127, 130])
+	currentTime = time.localtime()
+	currentTimeString = time.strftime("%H:%M:%S", currentTime)
+	print(currentTimeString)
+
+	startTime = time.monotonic()
 
 	# --- Experiment Parameters ---
 	minValue = 0
@@ -118,22 +89,22 @@ if __name__ == "__main__":
 	innerThreshold = 40
 	centerPoint = 127
 
-	# 240 Permutations
+	# 240 Transitions Required
 	# outerNumber = 3
 	# paddedNumber = 3
 	# centerNumber = 4
 	
 	# Prefered for Experiment
 	# 182 Transitions Required
-	# outerNumber = 2
-	# paddedNumber = 3
-	# centerNumber = 4
+	outerNumber = 2
+	paddedNumber = 3
+	centerNumber = 4
 
 	# For Testing TSP Solver
 	# 56 Transitions Required
-	outerNumber = 1
-	paddedNumber = 2
-	centerNumber = 2
+	# outerNumber = 1
+	# paddedNumber = 2
+	# centerNumber = 2
 	
 	# For fast results
 	# Only 20 Transitions
@@ -166,7 +137,7 @@ if __name__ == "__main__":
 	# Graph costs
 	idealTransitionCost = 0
 	extraTransitionCost = 5
-	identityCost = 1
+	identityCost = 10
 
 	# Computing Weight Matrix
 	transitionGraph =np.zeros((numberOfTransitions, numberOfTransitions)).tolist()
@@ -223,12 +194,11 @@ if __name__ == "__main__":
 	permutation = None
 	bestPermutation = None
 	
-	numberOfCycles = 5
+	numberOfCycles = 10
 	for i in range(0, numberOfCycles):
 		print(f"\t\t Pass # {i}")
 		
-		# permutation, distance = OptimizationPass(distance_matrix, x0=permutation, percentageRemaining = (numberOfCycles - i)/(numberOfCycles))
-		permutation, distance = OptimizationPass(distance_matrix, x0=bestPermutation, percentageRemaining = (numberOfCycles - i)/(numberOfCycles))
+		permutation, distance = OptimizationPass(distance_matrix)
 
 		# if (distance > bestDistance):
 		# 	break
@@ -247,6 +217,11 @@ if __name__ == "__main__":
 
 	distance, permutation = bestResult
 
+	print("!!!\\")
+	print(f"Best Result with Cost of {distance}: {permutation}")
+	print("!!!/")
+	print("")
+
 	# --- Converting Back to Point List ---
 	optimalTransitions = [transitionList[index] for index in permutation]
 
@@ -255,4 +230,48 @@ if __name__ == "__main__":
 	listOfPoints = ConvertPairsIntoPoints(optimalTransitions)
 
 	print(f"~~~ Order to Traverse {len(listOfPoints)} Points: {listOfPoints}")
+
+	# --- Saving Results ---
+	# Converting to default python datatypes (only if necessary)
+	distance = int(distance)
+
+	# Saving Results as a Dictionary
+	experimentDict = dict()
+	experimentDict["numberOfPoints"] = len(listOfPoints)
+	experimentDict["pointList"] = listOfPoints
+	experimentDict["distance"] = distance
+	
+	print(f"Dictionary Before Saving and Loading: {experimentDict}")
+
+	# Exporting the dictionary to a JSON
+	import json
+
+	fileName = "ServoExperimentPoints_"+str(distance)+".json"
+
+	# Opening JSON File
+	with open(fileName, 'w') as jsonFile:
+		json.dump(experimentDict, jsonFile)
+	# 
+	jsonFile.close()
+
+	# Loading the file to make sure it worked
+	jsonFile = "dud"
+
+	jsonFile = open(fileName)
+	loadedDictionary = json.load(jsonFile)
+	jsonFile.close()
+	
+	print(f"Dictionary After Saving and Loading : {loadedDictionary}")
+
+	# Just because I want to know how long everything took
+	endTime = time.monotonic()
+	
+	currentTime = time.localtime()
+	currentTimeString = time.strftime("%H:%M:%S", currentTime)
+	print(currentTimeString)
+
+	secondsElapsed = endTime - startTime
+	minutesElapsed = secondsElapsed / 60
+	print(f"Execution Time (s) : {secondsElapsed}")
+	print(f"Execution Time (m) : {minutesElapsed}")
 # 
