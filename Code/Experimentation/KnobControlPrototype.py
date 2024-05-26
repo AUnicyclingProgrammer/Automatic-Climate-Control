@@ -519,6 +519,28 @@ class KnobController:
 
 			# Error mangitude is now correct, it is safe to update
 			self.UpdateHasSettled()
+
+			# --- Preventing I Term Windup ---
+			# Defining Clamping Paramters
+			clampingMagnitude = 0.1
+
+			# Saving Current Bounds
+			currentBounds = self.pid.output_limits
+
+			# Temporarily clamp the bounds
+			deadzoneLowerBound = self.deadzoneCenter - self.deadzoneSize/2
+			clampedLowerBound = deadzoneLowerBound - clampingMagnitude
+			clampedUpperBound = deadzoneLowerBound + clampingMagnitude
+
+			# Clamping Bounds
+			self.pid.output_limits = (clampedLowerBound, clampedUpperBound)
+			print(f"Clamped to: ({clampedLowerBound}, {clampedUpperBound})")
+
+			# Calling PID Loop to Apply Clamping
+			self.pid(self.lastPotentiometerValue)
+
+			# Resetting Bounds
+			self.pid.output_limits = currentBounds
 			
 			# --- Preparing to Calculate Overshoot ---
 			# Reset last known overshoot
@@ -816,6 +838,7 @@ if __name__ == "__main__":
 	knobSuite = KnobSuite(2)
 
 	conductExperiment = True
+	experimentDictionary = None
 	if not conductExperiment:
 		# setpointQueue = deque([50, 200, 200, 50])
 		setpointQueue = deque([50, 200, 100, 150])
@@ -895,7 +918,8 @@ if __name__ == "__main__":
 		setpointNumber += 1
 
 		# Terminate if the experiment is over
-		if (setpointNumber == experimentDictionary["numberOfPoints"] and conductExperiment):
+		if ((experimentDictionary is not None) \
+	  		and (setpointNumber == experimentDictionary["numberOfPoints"]) and conductExperiment):
 			break
 		# 
 	# 
