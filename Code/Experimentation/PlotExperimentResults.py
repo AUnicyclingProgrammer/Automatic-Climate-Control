@@ -2,6 +2,8 @@
 # Utility
 from collections import deque
 import math
+import matplotlib.axes
+import matplotlib.figure
 import numpy as np
 import random
 import matplotlib.pyplot as plt
@@ -40,16 +42,16 @@ def AverageResults(listOfExperimentLogs):
 	into one log
 	"""
 
+	# Extract values into variables so the code is more legible
 	numberOfLogs = len(listOfExperimentLogs[0])
 	numberOfLists = len(listOfExperimentLogs)
 
-	print(f"Number of Logs: {numberOfLogs} | Number of Lists: {numberOfLists}")
+	# print(f"Number of Logs: {numberOfLogs} | Number of Lists: {numberOfLists}")
 
 	listOfAverages: List[dict] = []
 
 	for i in range(0, numberOfLogs):
-	# for i in range(0, 20):
-		# Access every index that the logs should be in
+		# For each log index
 
 		# Reset currentAverageDictionary
 		currentAverageDictionary = dict()
@@ -65,21 +67,16 @@ def AverageResults(listOfExperimentLogs):
 		timeValues = []
 		overshootValues = []
 
+		# Average all logs at i
 		for experimentNum in range(0, numberOfLists):
-			# Access the log at i for each experiment list
-			
+			# For each log at i from each experiment
 			currentList = listOfExperimentLogs[experimentNum]
-			# print(f"There are {len(currentList)} entries")
-			# print(f"First Entry: {currentList[0]}")
-
 			currentLog = currentList[i]
-			print(f"Current Log: {currentLog}")
-
 			
 			# Verify that all experiments have the same starting point
 			if (currentStartSetpoint is None):
 				currentStartSetpoint = currentLog["startSetpoint"]
-				print(f"Started at {currentStartSetpoint}")
+				# print(f"Started at {currentStartSetpoint}")
 				startSetpointMatches = True
 			elif (currentLog["startSetpoint"] == currentStartSetpoint):
 				# Does this match the other logs at this index?
@@ -92,7 +89,7 @@ def AverageResults(listOfExperimentLogs):
 			# Verify that all experiments have the same ending point
 			if (currentEndSetpoint is None):
 				currentEndSetpoint = currentLog["endSetpoint"]
-				print(f"Ended at {currentEndSetpoint}")
+				# print(f"Ended at {currentEndSetpoint}")
 				endSetpointMatches = True
 			elif (currentLog["endSetpoint"] == currentEndSetpoint):
 				# Does this match the other logs at this index?
@@ -102,41 +99,39 @@ def AverageResults(listOfExperimentLogs):
 				endSetpointMatches = False
 			#
 			
-			# Vetting Complete, save values
+			# Save the values from the current log
 			timeValues.append(currentLog["time"])
 			overshootValues.append(currentLog["overshoot"])
 		# 
 		
 		# Data has been collected, compute the average
-		
 		if startSetpointMatches and endSetpointMatches:
+			# If all logs start and end at the same spot
+			
 			# Average the data
-			print(f"Time: {timeValues}")
-			print(f"Overshoot: {overshootValues}")
-
 			averageTime = np.mean(timeValues)
 			averageOvershoot = np.mean(overshootValues)
 
-			print(f"Average Time: {averageTime: 6.2f} | Average Overshoot: {averageOvershoot: 6.2f}")
+			# print(f"Time: {timeValues}")
+			# print(f"Overshoot: {overshootValues}")
+			# print(f"Average Time: {averageTime: 6.2f} | Average Overshoot: {averageOvershoot: 6.2f}")
 
-			# Create and Save Dictonary Entry
+			# Save Results to currentAverageDictionary
 			currentAverageDictionary["channel"] = currentLog["channel"]
 			currentAverageDictionary["startSetpoint"] = currentLog["startSetpoint"]
 			currentAverageDictionary["endSetpoint"] = currentLog["endSetpoint"]
 			currentAverageDictionary["time"] = averageTime
 			currentAverageDictionary["overshoot"] = averageOvershoot
 			
-			print(f"Averaged Entry: {currentAverageDictionary}")
-
 			listOfAverages.append(currentAverageDictionary)
 			
-			# print(f"Current List: {listOfAverages}")
+			# print(f"Averaged Entry: {currentAverageDictionary}")
 		else:
+			# Something went wrong, complain
 			print(f"I GIVE UP!!!")
+			break
 		# 
 	# 
-
-	# print(f"Returning: {listOfAverages}")
 
 	return listOfAverages
 # 
@@ -164,7 +159,15 @@ def ConvertLogsToLists(listOfLogs: List[dict]):
 	return startPoints, endPoints, settlingTime, overshoot
 # 
 
-# ----- Utility Classes -----
+# ----- Plotting Functions -----
+def CreateAlphaBlendedCmap(alpha):
+	# Code from here: https://stackoverflow.com/questions/53565797/how-to-remove-edge-lines-from-tripcolor-plot-with-alpha-0
+	cls = plt.get_cmap()(np.linspace(0,1,256))
+	cls = (1-alpha) + alpha*cls
+	cmap = matplotlib.colors.ListedColormap(cls)
+
+	return cmap
+# 
 
 # ----- Begin Program -----
 if __name__ == "__main__":
@@ -178,40 +181,34 @@ if __name__ == "__main__":
 	# --- Loading Results ---
 	# Experimenting
 	folder = defaultFolderPath
-	title = "No I Term Clamping"
-	# title = "I Term Clamping Upon Initialization"
+	title = "Without Term Clamping"
+	
+	# folder = clampedFolderPath
+	# title = "With I Term Clamping"
 
 	experimentResults: List[dict] = []
 
+	# Loading each file and extracting the results
 	for name in os.listdir(folder):
 		with open(os.path.join(folder, name)) as currentFile:
-			print(f"Filename: '{name}'")
-
 			currentDictionary = dict()
 			currentDictionary:dict = json.load(currentFile)
 			currentFile.close()
 
-			print(f"Dictionary: {currentDictionary.keys()}")
+			# print(f"Filename: '{name}'")
+			# print(f"Dictionary: {currentDictionary.keys()}")
 
 			experimentResults.append(currentDictionary)
 		# 
 	# 
 
 	# --- Filtering Results ---
-
-	# knob0Logs = currentDictionary["knob0"]
-	# print(f"There are {len(knob0Logs)} logs")
-	# knob0Logs = RemoveStationaryMovements(knob0Logs)
-	# print(f"There are {len(knob0Logs)} logs")
-
-	# Pooling Results
+	# Sorting Results by Knob
 	knob0Logs = []
 	knob1Logs = []
 	for i in range(0, len(experimentResults)):
 		knob0Logs.append(experimentResults[i]["knob0"])
 		knob1Logs.append(experimentResults[i]["knob1"])
-		print(f"Knob0 List Length: {len(knob0Logs)}")
-		print(f"Knob1 List Length: {len(knob1Logs)}")
 	# 
 
 	# Removing Identities
@@ -226,30 +223,35 @@ if __name__ == "__main__":
 	# --- Converting To Lists ---
 	startList, endList, settlingTimeList, overshootList = ConvertLogsToLists(knob0Averages)
 
-	for i in range(0, len(startList)):
-		print(f"S: {startList[i]:3} | E: {endList[i]:3} | t: {settlingTimeList[i]:5.2f} | O: {overshootList[i]:5.2f}")
-	# 
+	# Printing out the contents of the list
+	# for i in range(0, len(startList)):
+	# 	# print(f"S: {startList[i]:3} | E: {endList[i]:3} | t: {settlingTimeList[i]:5.2f} | O: {overshootList[i]:5.2f}")
+	# # 
 		
 	# --- Plotting Results ---	
-	
+	# - Creating Figure and Applying Lables -
 	# Create the figure and plot (this command can also do nested plots)
 	fig, ax = plt.subplots()
 
-	# Plot the data
-	print(f"Lengths: S: {len(startList)} | E: {len(endList)} | t: {len(settlingTimeList)} | O: {len(overshootList)}")
+	ax.set_title(title)
+	ax.set_xlabel("Starting Position")
+	ax.set_ylabel("Ending Position")
 
-	# ax.pcolormesh(startList, endList, settlingTimeList, alpha = 0.5)
-	# ax.pcolormesh([startList, endList], settlingTimeList, alpha=0.5)
+	# - Plotting the Data -
+	# Blending the alpha values so there isn't such nasty overlap
+	cmap = CreateAlphaBlendedCmap(0.75)
 
-	# Coloring the background
+	# Applying Background Shading
 	trpColor = ax.tripcolor(startList, endList, settlingTimeList,\
-						shading='gouraud', alpha=0.5)
-	fig.colorbar(trpColor) # Adding the color-bar to the figure
+						shading='gouraud')
+	fig.colorbar(trpColor, label = "Settling Time (s)") # Adding the color-bar to the figure
 	
-	# ax.scatter(startList, endList, c=settlingTimeList, s=overshootList)
-	ax.scatter(startList, endList, c=settlingTimeList)
+	# Plotting Data Points
+	# ax.scatter(startList, endList, c=settlingTimeList, marker=".")
+	# ax.scatter(startList, endList, marker="o")
+	ax.plot(startList, endList, linewidth=0, marker="o", color="k", fillstyle="none")
 
+	# - Saving the Figure -
 	figureName = "experimentResults"
-	# plt.show()
 	plt.savefig(figureName)
 # 
