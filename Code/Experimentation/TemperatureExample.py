@@ -1,6 +1,41 @@
 # Just following the sparkfun guide found
 # here: https://learn.sparkfun.com/tutorials/python-programming-tutorial-getting-started-with-the-raspberry-pi/all#experiment-4-i2c-temperature-sensor
+# Improving using thie library: https://github.com/sparkfun/Qwiic_TMP102_Py
 
+from __future__ import print_function
+import qwiic_tmp102
+import time
+import sys
+
+def runExample():
+
+	print("\nSparkFun Qwiic TMP102 Sensor Test Example\n")
+	myTmpSensor = qwiic_tmp102.QwiicTmp102Sensor()
+
+	if myTmpSensor.is_connected == False:
+		print("The Qwiic TMP102 Sensor device isn't connected to the system. Please check your connection", \
+			file=sys.stderr)
+		return
+
+	myTmpSensor.begin()
+
+	print("Initialized.")
+
+	while True:
+		print ("Temp in F: ", myTmpSensor.read_temp_f())
+		print ("Temp in C: ", myTmpSensor.read_temp_c())
+		print ("--------------------------------------------")
+		time.sleep(0.5)
+
+if __name__ == '__main__':
+	try:
+		runExample()
+	except (KeyboardInterrupt, SystemExit) as exErr:
+		print("\nEnding Example 1")
+		sys.exit(0)
+
+# Old stuff
+""" 
 import time
 import smbus
 
@@ -64,3 +99,4 @@ while True:
     # print(round(temperature, 2), "C")
     print(round(temp_f, 2), "F")
     time.sleep(1)
+ """
