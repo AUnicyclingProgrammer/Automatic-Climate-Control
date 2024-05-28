@@ -212,35 +212,18 @@ def CreateAlphaBlendedCmap(alpha):
 	return cmap
 # 
 
-# ----- Begin Program -----
-if __name__ == "__main__":
-	# --- Universal Parameters ---
-	defaultFolderPath = "./DefaultConfiguration/"
-	clampedFolderPath = "./ClampedConfiguration/"
-
-	toyDefaultFolder = "ToyExperiments/Default/"
-	toyDefaultFolder = "ToyExperiments/Clamped/"
-
-	# --- Loading Results ---
-	# Experimenting
-	folder = defaultFolderPath
-	title = "Without Term Clamping"
-
-	knob0Averages, knob1Averages = AverageFolderContents(folder)
-		
-	# --- Plotting Results ---	
-	plotCollectionTitle = "Without I Term Clamping"
-	knob0Data = knob0Averages
-	knob1Data = knob1Averages
-
+def PlotExperimentalResults(figureTitle, filename, knob0Data, knob1Data):
+	"""
+	Plots the results from an experiment
+	"""
 	# --- Converting To Lists ---
-	knob0StartList, knob0EndList, knob0SettlingTimeList, knob0OvershootList = ConvertLogsToLists(knob0Averages)
-	knob1StartList, knob1EndList, knob1SettlingTimeList, knob1OvershootList = ConvertLogsToLists(knob1Averages)
+	knob0StartList, knob0EndList, knob0SettlingTimeList, knob0OvershootList = ConvertLogsToLists(knob0Data)
+	knob1StartList, knob1EndList, knob1SettlingTimeList, knob1OvershootList = ConvertLogsToLists(knob1Data)
 
 	# --- Knob 0 Plots ---
 	# -- Creating Figure/Subplots and Apply Lables --
 	fig, axs = plt.subplots(2, 2)
-	plt.suptitle(plotCollectionTitle)
+	plt.suptitle(figureTitle)
 	
 	# Changing Figure Dimensions
 	figureSizeMultiplier = 1.25
@@ -307,10 +290,36 @@ if __name__ == "__main__":
 	Doing it at the end prevents fields from overlapping
 	I guess it doesn't work if called right away because all the fields don't exist yet.
 	"""
-	
 	fig.tight_layout()
 
 	# - Saving the Figure -
-	figureName = "experimentResults"
-	plt.savefig(figureName)
+	plt.savefig(filename)
+# 
+
+# ----- Universal Functions -----
+def LoadAndPlotExperimentalData(folder, figureTitle, figureFilename):
+	# --- Loading Results ---
+	knob0Averages, knob1Averages = AverageFolderContents(folder)
+		
+	# --- Plotting Results ---
+	PlotExperimentalResults(figureTitle, figureFilename, knob0Averages, knob1Averages)
+# 
+
+# ----- Begin Program -----
+if __name__ == "__main__":
+	# --- Universal Parameters ---
+	defaultFolderPath = "./DefaultConfiguration/"
+	clampedFolderPath = "./ClampedConfiguration/"
+
+	toyDefaultFolder = "ToyExperiments/Default/"
+	toyDefaultFolder = "ToyExperiments/Clamped/"
+
+	# --- Loading and Plotting Results ---
+	figureTitle = "Without I Term Clamping"
+	filename = "defaultExperimentResults"
+	LoadAndPlotExperimentalData(defaultFolderPath, figureTitle, filename)
+	
+	figureTitle = "With I Term Clamping"
+	filename = "clampedExperimentResults"
+	LoadAndPlotExperimentalData(clampedFolderPath, figureTitle, filename)
 # 
