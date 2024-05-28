@@ -159,32 +159,10 @@ def ConvertLogsToLists(listOfLogs: List[dict]):
 	return startPoints, endPoints, settlingTime, overshoot
 # 
 
-# ----- Plotting Functions -----
-def CreateAlphaBlendedCmap(alpha):
-	# Code from here: https://stackoverflow.com/questions/53565797/how-to-remove-edge-lines-from-tripcolor-plot-with-alpha-0
-	cls = plt.get_cmap()(np.linspace(0,1,256))
-	cls = (1-alpha) + alpha*cls
-	cmap = matplotlib.colors.ListedColormap(cls)
-
-	return cmap
-# 
-
-# ----- Begin Program -----
-if __name__ == "__main__":
-	# --- Universal Parameters ---
-	defaultFolderPath = "./DefaultConfiguration/"
-	clampedFolderPath = "./ClampedConfiguration/"
-
-	toyDefaultFolder = "ToyExperiments/Default/"
-	toyDefaultFolder = "ToyExperiments/Clamped/"
-
-	# --- Loading Results ---
-	# Experimenting
-	folder = defaultFolderPath
-	title = "Without Term Clamping"
-	
-	# folder = clampedFolderPath
-	# title = "With I Term Clamping"
+def AverageFolderContents(folder):
+	"""
+	Averages all logs from the specified folder
+	"""
 
 	experimentResults: List[dict] = []
 
@@ -219,37 +197,118 @@ if __name__ == "__main__":
 
 	# Averaging Results
 	knob0Averages = AverageResults(knob0Logs)
+	knob1Averages = AverageResults(knob1Logs)
 
-	# --- Converting To Lists ---
-	startList, endList, settlingTimeList, overshootList = ConvertLogsToLists(knob0Averages)
+	return knob0Averages, knob1Averages
+# 
 
-	# Printing out the contents of the list
-	# for i in range(0, len(startList)):
-	# 	# print(f"S: {startList[i]:3} | E: {endList[i]:3} | t: {settlingTimeList[i]:5.2f} | O: {overshootList[i]:5.2f}")
-	# # 
+# ----- Plotting Functions -----
+def CreateAlphaBlendedCmap(alpha):
+	# Code from here: https://stackoverflow.com/questions/53565797/how-to-remove-edge-lines-from-tripcolor-plot-with-alpha-0
+	cls = plt.get_cmap()(np.linspace(0,1,256))
+	cls = (1-alpha) + alpha*cls
+	cmap = matplotlib.colors.ListedColormap(cls)
+
+	return cmap
+# 
+
+# ----- Begin Program -----
+if __name__ == "__main__":
+	# --- Universal Parameters ---
+	defaultFolderPath = "./DefaultConfiguration/"
+	clampedFolderPath = "./ClampedConfiguration/"
+
+	toyDefaultFolder = "ToyExperiments/Default/"
+	toyDefaultFolder = "ToyExperiments/Clamped/"
+
+	# --- Loading Results ---
+	# Experimenting
+	folder = defaultFolderPath
+	title = "Without Term Clamping"
+
+	knob0Averages, knob1Averages = AverageFolderContents(folder)
 		
 	# --- Plotting Results ---	
-	# - Creating Figure and Applying Lables -
-	# Create the figure and plot (this command can also do nested plots)
-	fig, ax = plt.subplots()
+	plotCollectionTitle = "Without I Term Clamping"
+	knob0Data = knob0Averages
+	knob1Data = knob1Averages
 
-	ax.set_title(title)
-	ax.set_xlabel("Starting Position")
-	ax.set_ylabel("Ending Position")
+	# --- Converting To Lists ---
+	knob0StartList, knob0EndList, knob0SettlingTimeList, knob0OvershootList = ConvertLogsToLists(knob0Averages)
+	knob1StartList, knob1EndList, knob1SettlingTimeList, knob1OvershootList = ConvertLogsToLists(knob1Averages)
 
-	# - Plotting the Data -
-	# Blending the alpha values so there isn't such nasty overlap
+	# --- Knob 0 Plots ---
+	# -- Creating Figure/Subplots and Apply Lables --
+	fig, axs = plt.subplots(2, 2)
+	plt.suptitle(plotCollectionTitle)
+	
+	# Changing Figure Dimensions
+	figureSizeMultiplier = 1.25
+	fig.set_size_inches(figureSizeMultiplier*fig.get_size_inches())
+
+	# Applying Lables
+	axs[0,0].set_title("Knob 0 Settling Time")
+	axs[1,0].set_title("Knob 0 Overshoot")
+	
+	axs[0,1].set_title("Knob 1 Settling Time")
+	axs[1,1].set_title("Knob 1 Overshoot")
+	
+	axs[0,0].set_xlabel("Starting Position")
+	axs[0,1].set_xlabel("Starting Position")
+	axs[1,0].set_xlabel("Starting Position")
+	axs[1,1].set_xlabel("Starting Position")
+	
+	axs[0,0].set_ylabel("Ending Position")
+	axs[0,1].set_ylabel("Ending Position")
+	axs[1,0].set_ylabel("Ending Position")
+	axs[1,1].set_ylabel("Ending Position")
+
+	# -- Plotting the Data --
+	# Creating a new color map with blended alpha values (removes ghost edges)
 	cmap = CreateAlphaBlendedCmap(0.75)
-
-	# Applying Background Shading
-	trpColor = ax.tripcolor(startList, endList, settlingTimeList,\
+	
+	# - Knob 0 Settling -
+	# Creating Settling Color Graident
+	trpColor = axs[0,0].tripcolor(knob0StartList, knob0EndList, knob0SettlingTimeList,\
 						shading='gouraud')
 	fig.colorbar(trpColor, label = "Settling Time (s)") # Adding the color-bar to the figure
 	
-	# Plotting Data Points
-	# ax.scatter(startList, endList, c=settlingTimeList, marker=".")
-	# ax.scatter(startList, endList, marker="o")
-	ax.plot(startList, endList, linewidth=0, marker="o", color="k", fillstyle="none")
+	# - Knob 0 Overshoot -
+	# Creating Overshoot Color Graident
+	trpColor = axs[1,0].tripcolor(knob0StartList, knob0EndList, knob0OvershootList,\
+						shading='gouraud')
+	fig.colorbar(trpColor, label = "Overshoot") # Adding the color-bar to the figure
+	
+	# - Knob 1 Settling -
+	# Creating Settling Color Graident
+	trpColor = axs[0,1].tripcolor(knob1StartList, knob1EndList, knob1SettlingTimeList,\
+						shading='gouraud')
+	fig.colorbar(trpColor, label = "Settling Time (s)") # Adding the color-bar to the figure
+	
+	# - Knob 1 Overshoot -
+	# Creating Overshoot Color Graident
+	trpColor = axs[1,1].tripcolor(knob1StartList, knob1EndList, knob1OvershootList,\
+						shading='gouraud')
+	fig.colorbar(trpColor, label = "Overshoot") # Adding the color-bar to the figure
+	
+	
+	# - All Plots -
+	# Plotting Transition Start and End Points on All Plots
+	marker = "."
+	axs[0,0].plot(knob0StartList, knob0EndList, linewidth=0, marker=marker, color="k", fillstyle="none")
+	axs[0,1].plot(knob0StartList, knob0EndList, linewidth=0, marker=marker, color="k", fillstyle="none")
+	axs[1,0].plot(knob0StartList, knob0EndList, linewidth=0, marker=marker, color="k", fillstyle="none")
+	axs[1,1].plot(knob0StartList, knob0EndList, linewidth=0, marker=marker, color="k", fillstyle="none")
+
+
+	# Change Layout
+	"""
+	Needs done at end of file, applies to everything if done right away
+	Doing it at the end prevents fields from overlapping
+	I guess it doesn't work if called right away because all the fields don't exist yet.
+	"""
+	
+	fig.tight_layout()
 
 	# - Saving the Figure -
 	figureName = "experimentResults"
