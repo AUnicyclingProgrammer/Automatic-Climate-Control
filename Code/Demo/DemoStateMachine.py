@@ -29,7 +29,7 @@ class DemoStateMachine:
         self.state = "display"
 
         # Time to wait between updates
-        self.updateTime = 0.25
+        self.updateTime = 0.5
 
         # --- Objects ---
         # - Joystick -
@@ -75,7 +75,6 @@ class DemoStateMachine:
         # 
     # 
 
-
     def DisplayState(self):
         """
         Function for the state that displays the temperature the sensor is currently
@@ -95,26 +94,35 @@ class DemoStateMachine:
         
         # --- Processing Loop ---
         while self.state == "display":
-            # - Get User Input -
-            # Query Joystick
-            joystickInput = self.joystick()
+            try:
+                # - Get User Input -
+                # Query Joystick
+                joystickInput = self.joystick()
 
-            # Update State
-            if joystickInput == "right" or joystickInput == "left":
-                self.state = "move"
+                # Update State
+                if joystickInput == "right" or joystickInput == "left":
+                    self.state = "move"
+                # 
+
+                # - Display Temperature -
+                # Print Temperature
+                temperature = self.tempSensor.read_temp_f()
+                self.lcd.print(f"{temperature:4.1f} F")
+                
+                # - Reset for Next Loop -
+                # Small Delay (Partial)
+                time.sleep(self.updateTime/2)
+                
+                # Reset Cursor
+                self.lcd.setCursor(0,1)
+
+                # Small Delay (Partial)
+                time.sleep(self.updateTime/2)
+            # except (KeyboardInterrupt, SystemExit) as exErr:
+            except OSError:
+                print("An OSError occured, ignoring it and moving on")
+                time.sleep(self.updateTime)
             # 
-
-            # - Display Temperature -
-            # Print Temperature
-            temperature = self.tempSensor.read_temp_f()
-            self.lcd.print(f"{temperature:4.1f} F")
-            
-            # - Reset for Next Loop
-            # Small Delay
-            time.sleep(self.updateTime)
-            
-            # Reset Cursor
-            self.lcd.setCursor(0,1)
         # 
 
         print("Exiting Display State")
@@ -137,20 +145,31 @@ class DemoStateMachine:
         self.lcd.setCursor(0, 1)
 
         # --- Processing Loop ---
-        while self.state == "move":
-            print("State not currently functional")
-            
-            # - Get User Input -
-            # Query Joystick
-            joystickInput = self.joystick()
+        while self.state == "move":            
+            try:
+                # - Get User Input -
+                # Query Joystick
+                joystickInput = self.joystick()
 
-            # Update State
-            if joystickInput == "right" or joystickInput == "left":
-                self.state = "display"
-            # 
-            
-            # Small Delay
-            time.sleep(self.updateTime)
+                # Update State
+                if joystickInput == "right" or joystickInput == "left":
+                    self.state = "display"
+                # 
+
+                # - Process Movement -
+                
+                # - Reset for Next Loop -
+                # Small Delay (Partial)
+                time.sleep(self.updateTime/2)
+                
+                # Reset Cursor
+                self.lcd.setCursor(0,1)
+
+                # Small Delay (Partial)
+                time.sleep(self.updateTime/2)
+            except OSError:
+                print("An OSError occured, ignoring it and moving on")
+                time.sleep(self.updateTime)
         # 
 
         print("Exiting Move State")
