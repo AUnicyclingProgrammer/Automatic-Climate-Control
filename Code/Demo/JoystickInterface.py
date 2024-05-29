@@ -22,7 +22,7 @@ class JoystickInterface:
 
 		# --- Initializing Joystick ---
 		self.joystick = qwiic_joystick.QwiicJoystick()
-		myJoystick.begin()
+		self.joystick.begin()
 	# 
 
 	def __call__(self):

@@ -1,4 +1,9 @@
 # ----- Imports -----
+# Utility
+import time
+
+# My Code
+from DemoStateMachine import DemoStateMachine
 
 # ----- Global Values ----
 
@@ -10,5 +15,10 @@
 
 # ----- Begin Program -----
 if __name__ == "__main__":
-    print("Printed Output")
+    print("Beginning Demonstration")
+
+    time.sleep(1)
+
+    stateMachine = DemoStateMachine()
+    stateMachine.Start()
 # 
