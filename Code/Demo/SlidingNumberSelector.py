@@ -61,13 +61,6 @@ class SlidingNumberSelector:
         # Determining how much to increment by
         currentIncrement = pow(2, self.speedRampCount)
 
-        print(f"Dir: {incrementDirection:2}" \
-                + f" | Tendency: {currentRampingTendency:5.2f}" \
-                + f" | Count: {self.speedRampCount:3}" \
-                + f" | Increment: {currentIncrement:3}" \
-                + f" | Continue: {shouldContinueRamping:5.2f}" \
-            )
-
         # Updaing Increment Value
         if (incrementDirection > 0):
             self.value += currentIncrement
