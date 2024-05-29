@@ -9,10 +9,7 @@ import qwiic_tmp102
 # My Code
 from JoystickInterface import JoystickInterface
 from SlidingNumberSelector import SlidingNumberSelector
-
-# ----- Global Values ----
-
-# ----- Global Classes -----
+from KnobSuite import KnobSuite
 
 # ----- Class -----
 class DemoStateMachine:
@@ -33,6 +30,9 @@ class DemoStateMachine:
         self.updateTime = 0.25
 
         # --- Objects ---
+        # - KnobSuite -
+        self.knobSuite = KnobSuite(2)
+
         # - Joystick -
         self.joystick = JoystickInterface()
 
@@ -184,9 +184,9 @@ class DemoStateMachine:
                 self.lcd.print(f"Moving")
 
                 # Move the Knobs
-                # Pretending to move
-                time.sleep(3)
-
+                setpoints = [setpoint, setpoint]
+                self.knobSuite(setpoints)
+                
                 # Clearing Bottom Line (By Writing to a Whole Row)
                 self.lcd.setCursor(0,2)
                 self.lcd.print(f"{'':20}")

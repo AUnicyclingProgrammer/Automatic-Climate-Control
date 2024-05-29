@@ -68,6 +68,10 @@ class KnobController:
 		self.servoHat = pi_servo_hat.PiServoHat()
 		# Soft rest the system, preparing it for use
 		self.servoHat.restart()
+		# Wait a little bit
+		time.sleep(0.001)
+		# Tell the motor that it should start in the off position
+		self.servoHat.move_servo_position(self.knobNumber, 180)
 
 		# --- Creating Control Range ---
 		# - Defining Operational Range -

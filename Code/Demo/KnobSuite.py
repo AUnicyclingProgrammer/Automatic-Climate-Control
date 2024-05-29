@@ -59,7 +59,7 @@ class KnobSuite:
 		return condition
 	# 
 
-	def __call__(self, setpointList, sequential = True, printDebugValues = True):
+	def __call__(self, setpointList, sequential = False, printDebugValues = True):
 		"""
 		Updates all knobs in the suite at the same time
 
@@ -100,28 +100,33 @@ class KnobSuite:
 		
 		
 		# --- Move to Setpoints ---
-		while (not np.all(self.settledKnobs)):
-			for number in range(0, self.numberOfKnobs):
-				# Get Knob Controller and Setpoint
-				knobController = self.knobs[number]
-				setpoint = setpointList[number]
-				
-				# Update Knob (if not settled)
-				if (not self.settledKnobs[number]):
-					knobController(setpoint, sequential=sequential)
+		# Try to move, ignore OSErrors if the i2c bus throws a fit
+		try:
+			while (not np.all(self.settledKnobs)):
+				for number in range(0, self.numberOfKnobs):
+					# Get Knob Controller and Setpoint
+					knobController = self.knobs[number]
+					setpoint = setpointList[number]
+					
+					# Update Knob (if not settled)
+					if (not self.settledKnobs[number]):
+						knobController(setpoint, sequential=sequential)
+					# 
+
+					# Has it settled
+					self.settledKnobs[number] = self.HasControllerSettled(knobController)
+
+					# Add delay if processing all knobs in parallel
+					if not sequential:
+						time.sleep(self.samplingTime)	
+					# 
+
+					# Save Knob Instance (Technically Unecessary)
+					self.knobs[number] = knobController
 				# 
-
-				# Has it settled
-				self.settledKnobs[number] = self.HasControllerSettled(knobController)
-
-				# Add delay if processing all knobs in parallel
-				if not sequential:
-					time.sleep(self.samplingTime)	
-				# 
-
-				# Save Knob Instance (Technically Unecessary)
-				self.knobs[number] = knobController
 			# 
+		except OSError:
+			print("An OSError occured, ignoring it and moving on")
 		# 
 	# 
 
