@@ -158,7 +158,7 @@ class DemoStateMachine:
                 self.state = "display"
             # 
 
-            # - Process Movement -
+            # - Update Setpoint -
             # Convert Joystick Input to Movement Command
             incrementDirection = 0
             
@@ -168,11 +168,32 @@ class DemoStateMachine:
                 incrementDirection = -1
             # 
             
-            # Determine Current Number
+            # Determine Current Setpoint
             setpoint = self.setpointSelector.UpdateValue(incrementDirection)
 
             # - Update Display -
             self.lcd.print(f"{setpoint:3}")    
+            
+            # - Process Movement-
+            if joystickInput == "select":
+                # Some Debugging Statements
+                print(f"Moving to {setpoint}")
+                
+                # Display That the System is Moving
+                self.lcd.setCursor(0,2)
+                self.lcd.print(f"Moving")
+
+                # Move the Knobs
+                # Pretending to move
+                time.sleep(3)
+
+                # Clearing Bottom Line (By Writing to a Whole Row)
+                self.lcd.setCursor(0,2)
+                self.lcd.print(f"{'':20}")
+
+                # More Debugging
+                print(f"Move Complete")
+            # 
             
             # - Reset for Next Loop -
             # Small Delay (Partial)
