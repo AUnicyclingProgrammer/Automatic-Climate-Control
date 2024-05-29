@@ -13,7 +13,7 @@ class SlidingNumberSelector:
     multiple times in a row
     """
 
-    def __init__(self, min, max, speedRampInterval = 5):
+    def __init__(self, min, max, speedRampInterval = 4):
         """
         Initializes an instance of the class
         """
@@ -32,11 +32,11 @@ class SlidingNumberSelector:
         self.value = np.mean([min,max], dtype = int)
     # 
 
-    def UpdateValue(self, incrementDirection):
+    def UpdateValue(self, incrementDirection = 0):
         """
         Updates the currently stored value
 
-        incrementDirection: +1, positive increment, -1, negativeIncrement
+        incrementDirection: +1, positive increment, -1, negative increment, 0, stationary
         """
 
         # Applying Speed Ramping

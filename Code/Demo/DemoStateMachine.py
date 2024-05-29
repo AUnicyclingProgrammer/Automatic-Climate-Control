@@ -29,6 +29,9 @@ class DemoStateMachine:
         # Time to wait between updates
         self.updateTime = 0.25
 
+        # Which knob is currently selected in the move state
+        self.selectedKnob = 0
+
         # --- Objects ---
         # - KnobSuite -
         self.knobSuite = KnobSuite(2)
@@ -54,8 +57,11 @@ class DemoStateMachine:
 
         self.tempSensor.begin()
 
-        # - Setpoint Selector -
-        self.setpointSelector = SlidingNumberSelector(min = 5, max = 250)
+        # - Setpoint Selectors -
+        minimumSetpoint = 5
+        maximumSetpoint = 250
+        self.setpointSelector0 = SlidingNumberSelector(min = minimumSetpoint, max = maximumSetpoint)
+        self.setpointSelector1 = SlidingNumberSelector(min = minimumSetpoint, max = maximumSetpoint)
 
         # 
 
@@ -100,7 +106,7 @@ class DemoStateMachine:
 
         # Move Cursor to Second Row
         self.lcd.setCursor(0, 1)
-        
+       
         # --- Processing Loop ---
         while self.state == "display":
             # - Get User Input -
@@ -138,6 +144,32 @@ class DemoStateMachine:
         print("Entered Move State")
 
         # --- Update Display ---
+        # - Initilize Selection Indicators -
+        # Create Custom Characters
+        selected = [ 
+            0b00000,
+            0b00000,
+            0b00110,
+            0b01111,
+            0b01111,
+            0b00110,
+            0b00000,
+            0b00000,
+        ]
+        notSelected = [ 
+            0b00000,
+            0b00000,
+            0b00110,
+            0b01001,
+            0b01001,
+            0b00110,
+            0b00000,
+            0b00000,
+        ]
+        self.lcd.createChar(0, notSelected)
+        self.lcd.createChar(1, selected)
+        
+        # - Initialize State Screen -
         # Reset the screen
         self.lcd.clearScreen()
         
@@ -147,6 +179,10 @@ class DemoStateMachine:
         # Move Cursor to Second Row
         self.lcd.setCursor(0, 1)
 
+        # --- Prepare to Enter Loop ---
+        setpoint0 = self.setpointSelector0.UpdateValue()
+        setpoint1 = self.setpointSelector1.UpdateValue()
+
         # --- Processing Loop ---
         while self.state == "move":            
             # - Get User Input -
@@ -154,8 +190,17 @@ class DemoStateMachine:
             joystickInput = self.joystick()
 
             # Update State
-            if joystickInput == "right" or joystickInput == "left":
+            if joystickInput == "left" and self.selectedKnob == 0:
                 self.state = "display"
+            # 
+
+            # Update Selected Knob
+            if joystickInput == "right" and self.selectedKnob == 0:
+                self.selectedKnob = 1
+                print("! - Selected Knob 1")
+            elif joystickInput == "left" and self.selectedKnob == 1:
+                self.selectedKnob = 0
+                print("! - Selected Knob 0")
             # 
 
             # - Update Setpoint -
@@ -168,30 +213,52 @@ class DemoStateMachine:
                 incrementDirection = -1
             # 
             
-            # Determine Current Setpoint
-            setpoint = self.setpointSelector.UpdateValue(incrementDirection)
+            # Determine Current Setpoints
+            if self.selectedKnob == 0:
+                setpoint0 = self.setpointSelector0.UpdateValue(incrementDirection)
+            elif self.selectedKnob == 1:
+                setpoint1 = self.setpointSelector1.UpdateValue(incrementDirection)
+            # 
 
             # - Update Display -
-            self.lcd.print(f"{setpoint:3}")    
+            if self.selectedKnob == 0:
+                # Update Knob 0
+                self.lcd.setCursor(0,1)
+                self.lcd.writeChar(1)
+                self.lcd.print(f"{setpoint0:3}")
+                
+                # Update Knob 1
+                self.lcd.setCursor(10,1)
+                self.lcd.writeChar(0)
+                self.lcd.print(f"{setpoint1:3}")
+            elif self.selectedKnob == 1:
+                # Update Knob 0
+                self.lcd.setCursor(0,1)
+                self.lcd.writeChar(0)
+                self.lcd.print(f"{setpoint0:3}")
+                
+                # Update Knob 1
+                self.lcd.setCursor(10,1)
+                self.lcd.writeChar(1)
+                self.lcd.print(f"{setpoint1:3}")
+            # 
             
             # - Process Movement-
-            if joystickInput == "select":
-                # Some Debugging Statements
-                print(f"Moving to {setpoint}")
-                
+            if joystickInput == "select":                
                 # Display That the System is Moving
                 self.lcd.setCursor(0,2)
                 self.lcd.print(f"Moving")
 
                 # Move the Knobs
-                setpoints = [setpoint, setpoint]
+                setpoints = [setpoint0, setpoint1]
+                print(f"Moving to {setpoints}")
+                
                 self.knobSuite(setpoints)
                 
                 # Clearing Bottom Line (By Writing to a Whole Row)
                 self.lcd.setCursor(0,2)
                 self.lcd.print(f"{'':20}")
 
-                # More Debugging
                 print(f"Move Complete")
             # 
             
