@@ -2,6 +2,10 @@
 # Utility
 import time
 
+# Qwiic
+import qwiic_serlcd
+import qwiic_tmp102
+
 # My Code
 from JoystickInterface import JoystickInterface
 
@@ -28,8 +32,28 @@ class DemoStateMachine:
         self.updateTime = 0.25
 
         # --- Objects ---
+        # - Joystick -
         self.joystick = JoystickInterface()
-    # 
+
+        # - LCD -
+        self.lcd = qwiic_serlcd.QwiicSerlcd()
+
+        self.lcd.setBacklight(255, 255, 255) # Set backlight to bright white
+        self.lcd.setContrast(5) # set contrast. Lower to 0 for higher contrast.
+        self.lcd.clearScreen() # clear the screen - this moves the cursor to the home position as well
+
+        time.sleep(2) # give a sec for system messages to complete
+        
+        self.lcd.print("Hello!")
+
+        time.sleep(1) # Wait so the user can see the greeting
+
+        # - Temperature Sensor -
+        self.tempSensor = qwiic_tmp102.QwiicTmp102Sensor()
+
+        self.tempSensor.begin()
+
+        # 
 
     def Start(self):
         """
@@ -59,6 +83,16 @@ class DemoStateMachine:
         """
         print("Entered Display State")
 
+        # --- Update Display ---
+        # Reset the screen
+        self.lcd.clearScreen()
+        
+        # Print Title
+        self.lcd.print("Temperature")
+
+        # Move Cursor to Second Row
+        self.lcd.setCursor(0, 1)
+        
         # --- Processing Loop ---
         while self.state == "display":
             # - Get User Input -
@@ -69,9 +103,18 @@ class DemoStateMachine:
             if joystickInput == "right" or joystickInput == "left":
                 self.state = "move"
             # 
+
+            # - Display Temperature -
+            # Print Temperature
+            temperature = self.tempSensor.read_temp_f()
+            self.lcd.print(f"{temperature:4.1f} F")
             
+            # - Reset for Next Loop
             # Small Delay
             time.sleep(self.updateTime)
+            
+            # Reset Cursor
+            self.lcd.setCursor(0,1)
         # 
 
         print("Exiting Display State")
@@ -82,6 +125,16 @@ class DemoStateMachine:
         Function for the state that allows the user to adjust the position of the knobs
         """
         print("Entered Move State")
+
+        # --- Update Display ---
+        # Reset the screen
+        self.lcd.clearScreen()
+        
+        # Print Title
+        self.lcd.print("Adjust Position")
+
+        # Move Cursor to Second Row
+        self.lcd.setCursor(0, 1)
 
         # --- Processing Loop ---
         while self.state == "move":
