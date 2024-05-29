@@ -13,7 +13,7 @@ class SlidingNumberSelector:
     multiple times in a row
     """
 
-    def __init__(self, min, max, speedRampInterval = 10):
+    def __init__(self, min, max, speedRampInterval = 5):
         """
         Initializes an instance of the class
         """
@@ -25,6 +25,8 @@ class SlidingNumberSelector:
         self.speedRampInterval = 10
         self.speedRampIndicator = MovingAverage(self.speedRampInterval)
         self.speedRampCount = 0 # Counts how many times the speed ramp has been incremented
+        
+        self.lastIncrementDirection = 0
 
         # Setting Internal Values
         self.value = np.mean([min,max], dtype = int)
@@ -37,8 +39,34 @@ class SlidingNumberSelector:
         incrementDirection: +1, positive increment, -1, negativeIncrement
         """
 
+        # Applying Speed Ramping
+        currentRampingTendency = self.speedRampIndicator(incrementDirection)
+        shouldIncrementSpeedRamp = abs(currentRampingTendency) == 1
+        
+        noDirectionChange = self.lastIncrementDirection == incrementDirection
+        shouldContinueRamping = noDirectionChange and not (incrementDirection == 0)
+        
+        # if shouldIncrementSpeedRamp or shouldContinueRamping:
+        if shouldIncrementSpeedRamp:
+            # Add 1 to the speed ramp count
+            self.speedRampCount += 1
+
+            # Reset Ramp Indicator
+            self.speedRampIndicator(0)
+        elif not shouldContinueRamping:
+            # Stop and Reset Ramp Count
+            self.speedRampCount = 0
+        # 
+
         # Determining how much to increment by
-        currentIncrement = 1
+        currentIncrement = pow(2, self.speedRampCount)
+
+        print(f"Dir: {incrementDirection:2}" \
+                + f" | Tendency: {currentRampingTendency:5.2f}" \
+                + f" | Count: {self.speedRampCount:3}" \
+                + f" | Increment: {currentIncrement:3}" \
+                + f" | Continue: {shouldContinueRamping:5.2f}" \
+            )
 
         # Updaing Increment Value
         if (incrementDirection > 0):
@@ -46,6 +74,9 @@ class SlidingNumberSelector:
         elif (incrementDirection < 0):
             self.value -= currentIncrement
         #
+
+        # Save Last Increment Value
+        self.lastIncrementDirection = incrementDirection
 
         # Clamp the Bounds of the Value
         self.value = self.ClampValue(self.value)

@@ -172,8 +172,7 @@ class DemoStateMachine:
             setpoint = self.setpointSelector.UpdateValue(incrementDirection)
 
             # - Update Display -
-            self.lcd.print(f"{setpoint:3}")
-            
+            self.lcd.print(f"{setpoint:3}")    
             
             # - Reset for Next Loop -
             # Small Delay (Partial)
