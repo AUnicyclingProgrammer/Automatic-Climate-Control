@@ -8,6 +8,7 @@ import qwiic_tmp102
 
 # My Code
 from JoystickInterface import JoystickInterface
+from SlidingNumberSelector import SlidingNumberSelector
 
 # ----- Global Values ----
 
@@ -29,7 +30,7 @@ class DemoStateMachine:
         self.state = "display"
 
         # Time to wait between updates
-        self.updateTime = 0.5
+        self.updateTime = 0.25
 
         # --- Objects ---
         # - Joystick -
@@ -53,6 +54,9 @@ class DemoStateMachine:
 
         self.tempSensor.begin()
 
+        # - Setpoint Selector -
+        self.setpointSelector = SlidingNumberSelector(min = 5, max = 250)
+
         # 
 
     def Start(self):
@@ -63,11 +67,16 @@ class DemoStateMachine:
         print("Starting State Machine")
 
         while True:
-            # Iterate through the states
-            if self.state == "display":
-                self.DisplayState()
-            elif self.state == "move":
-                self.MoveState()
+            # Process Current State
+            try:
+                # Iterate through the states
+                if self.state == "display":
+                    self.DisplayState()
+                elif self.state == "move":
+                    self.MoveState()
+                # 
+            except OSError:
+                print("An OSError occured, ignoring it and moving on")
             # 
 
             # Wait a little bit between updates
@@ -94,35 +103,29 @@ class DemoStateMachine:
         
         # --- Processing Loop ---
         while self.state == "display":
-            try:
-                # - Get User Input -
-                # Query Joystick
-                joystickInput = self.joystick()
+            # - Get User Input -
+            # Query Joystick
+            joystickInput = self.joystick()
 
-                # Update State
-                if joystickInput == "right" or joystickInput == "left":
-                    self.state = "move"
-                # 
-
-                # - Display Temperature -
-                # Print Temperature
-                temperature = self.tempSensor.read_temp_f()
-                self.lcd.print(f"{temperature:4.1f} F")
-                
-                # - Reset for Next Loop -
-                # Small Delay (Partial)
-                time.sleep(self.updateTime/2)
-                
-                # Reset Cursor
-                self.lcd.setCursor(0,1)
-
-                # Small Delay (Partial)
-                time.sleep(self.updateTime/2)
-            # except (KeyboardInterrupt, SystemExit) as exErr:
-            except OSError:
-                print("An OSError occured, ignoring it and moving on")
-                time.sleep(self.updateTime)
+            # Update State
+            if joystickInput == "right" or joystickInput == "left":
+                self.state = "move"
             # 
+
+            # - Display Temperature -
+            # Print Temperature
+            temperature = self.tempSensor.read_temp_f()
+            self.lcd.print(f"{temperature:4.1f} F")
+            
+            # - Reset for Next Loop -
+            # Small Delay (Partial)
+            time.sleep(self.updateTime/2)
+            
+            # Reset Cursor
+            self.lcd.setCursor(0,1)
+
+            # Small Delay (Partial)
+            time.sleep(self.updateTime/2)
         # 
 
         print("Exiting Display State")
@@ -146,30 +149,42 @@ class DemoStateMachine:
 
         # --- Processing Loop ---
         while self.state == "move":            
-            try:
-                # - Get User Input -
-                # Query Joystick
-                joystickInput = self.joystick()
+            # - Get User Input -
+            # Query Joystick
+            joystickInput = self.joystick()
 
-                # Update State
-                if joystickInput == "right" or joystickInput == "left":
-                    self.state = "display"
-                # 
+            # Update State
+            if joystickInput == "right" or joystickInput == "left":
+                self.state = "display"
+            # 
 
-                # - Process Movement -
-                
-                # - Reset for Next Loop -
-                # Small Delay (Partial)
-                time.sleep(self.updateTime/2)
-                
-                # Reset Cursor
-                self.lcd.setCursor(0,1)
+            # - Process Movement -
+            # Convert Joystick Input to Movement Command
+            incrementDirection = 0
+            
+            if joystickInput == "up":
+                incrementDirection = 1
+            elif joystickInput == "down":
+                incrementDirection = -1
+            # 
+            
+            # Determine Current Number
+            setpoint = self.setpointSelector.UpdateValue(incrementDirection)
 
-                # Small Delay (Partial)
-                time.sleep(self.updateTime/2)
-            except OSError:
-                print("An OSError occured, ignoring it and moving on")
-                time.sleep(self.updateTime)
+            # - Update Display -
+            self.lcd.print(f"{setpoint:3}")
+            
+            
+            # - Reset for Next Loop -
+            # Small Delay (Partial)
+            time.sleep(self.updateTime/2)
+            
+            # Reset Cursor
+            self.lcd.setCursor(0,1)
+
+            # Small Delay (Partial)
+            time.sleep(self.updateTime/2)
+            # 
         # 
 
         print("Exiting Move State")
