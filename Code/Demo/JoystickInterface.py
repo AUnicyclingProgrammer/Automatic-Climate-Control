@@ -41,7 +41,7 @@ class JoystickInterface:
 		y = self.joystick.get_vertical()
 		button = not self.joystick.get_button() # Returns 0 if pressed
 
-		# Defining Default Output (which should get overwritten anyways)
+		# Defining Default Output
 		currentState = "center"
 
 		# Checking if Joystick is in Deadzone
