@@ -1,1 +1,5 @@
-Repository for a minimially invasive system that can control the climate control system in vehicles that have knobs but no automatic climate control.
+Repository for a minimially invasive system that can control the climate control system in vehicles with conventional climate control systems.
+
+The goal is to design a generic system centered around the Raspberry Pi Zero 2 W that will use machine learning to automate the climate control system in a vehicle. Rather than replacing the existing climate control system, the system works in tandem with the pre-existing control system by using an array of actuators to manipulate the original control system. Not only will this simplify the installation process, but it will also allow users to easily remove the system if they need to sell or replace their car.
+
+The first version of the system is being designed for a 2004 Mini Cooper. Once operational, future versions can theoretically be installed in any vehicle. This will require modifying the mounting and interfacing hardware, but should require minimal software modifications as all manual climate control systems operate in more-or-less the same way. (Most of the software modifications will probably be related commanding the new actuation hardware).
